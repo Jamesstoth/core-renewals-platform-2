@@ -1,0 +1,33 @@
+{
+  "name": "next-scaffold",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "sync": "tsx scripts/sync.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.85.0",
+    "@supabase/supabase-js": "^2.101.1",
+    "dotenv": "^17.4.1",
+    "next": "14.2.35",
+    "next-auth": "^4.24.13",
+    "openai": "^6.33.0",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
