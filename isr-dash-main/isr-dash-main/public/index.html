@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trilogy Dashboard</title>
+<style>
+  :root {
+    --bg:          #f1f5f9;
+    --surface:     #ffffff;
+    --surface2:    #f8fafc;
+    --border:      #e2e8f0;
+    --border2:     #f1f5f9;
+    --text:        #1e293b;
+    --text-strong: #0f172a;
+    --text-muted:  #475569;
+    --text-faint:  #64748b;
+    --text-meta:   #94a3b8;
+    --text-td:     #334155;
+    --link:        #2563eb;
+    --link-hover:  #1d4ed8;
+    --accent:      #3b82f6;
+    --accent-bg:   #dbeafe;
+    --accent-text: #1d4ed8;
+    --row-hover:   #f8fafc;
+    --shadow:      0 1px 3px rgba(0,0,0,.08),0 0 0 1px rgba(0,0,0,.04);
+  }
+  body.dark {
+    --bg:          #0f172a;
+    --surface:     #1e293b;
+    --surface2:    #0f172a;
+    --border:      #334155;
+    --border2:     #1e293b;
+    --text:        #e2e8f0;
+    --text-strong: #f8fafc;
+    --text-muted:  #94a3b8;
+    --text-faint:  #64748b;
+    --text-meta:   #475569;
+    --text-td:     #cbd5e1;
+    --link:        #60a5fa;
+    --link-hover:  #93c5fd;
+    --accent:      #3b82f6;
+    --accent-bg:   #1d4ed8;
+    --accent-text: #bfdbfe;
+    --row-hover:   #1e293b;
+    --shadow:      0 1px 3px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.04);
+  }
+
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* ── Header ── */
+  .page-header {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 20px; height:46px; position:sticky; top:0; z-index:20;
+    box-shadow:var(--shadow);
+  }
+  .brand { font-size:14px; font-weight:700; color:var(--text-strong); white-space:nowrap; }
+  .header-meta { flex:1; font-size:11px; color:var(--text-muted); }
+  .header-meta strong { color:var(--text-faint); }
+  .theme-toggle,.refresh-btn {
+    flex-shrink:0; background:var(--surface2); border:1px solid var(--border);
+    color:var(--text-muted); border-radius:6px; padding:4px 10px;
+    font-size:11px; cursor:pointer; transition:color .15s,background .15s; white-space:nowrap;
+  }
+  .theme-toggle:hover,.refresh-btn:hover { color:var(--text); }
+  .refresh-btn:disabled { opacity:.6; cursor:default; }
+
+  /* ── KPI bar (always visible) ── */
+  .kpi-bar { padding:14px 20px 0; }
+
+  /* ── Dashboard body ── */
+  .dashboard-body { padding:10px 20px 16px; }
+
+  /* ── KPI row ── */
+  .kpi-row {
+    display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-bottom:14px;
+  }
+  .kpi-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; cursor:pointer; user-select:none;
+    box-shadow:var(--shadow); transition:box-shadow .15s,transform .1s;
+  }
+  .kpi-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.12); transform:translateY(-1px); }
+  .kpi-sub   { font-size:10px; color:var(--text-meta); text-transform:uppercase;
+                letter-spacing:.04em; margin-bottom:4px; }
+  .kpi-count { font-size:36px; font-weight:700; line-height:1; margin-bottom:4px; }
+  .kpi-title { font-size:11px; color:var(--text-muted); font-weight:500; }
+
+  /* ── Gate grid ── */
+  .gate-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+  }
+  .gate-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column;
+  }
+  .gate-card-hdr {
+    display:flex; align-items:flex-start; justify-content:space-between;
+    padding:12px 14px 10px; gap:8px;
+  }
+  .gate-card-title { font-size:12px; font-weight:600; color:var(--text-strong); line-height:1.3; }
+  .gate-card-meta  { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .view-all-btn {
+    flex-shrink:0; background:none; border:1px solid var(--border);
+    color:var(--accent); border-radius:5px; padding:3px 8px;
+    font-size:11px; cursor:pointer; white-space:nowrap; transition:background .12s;
+  }
+  .view-all-btn:hover { background:var(--accent-bg); }
+
+  /* ── Compact embedded table ── */
+  .ct-wrap { overflow-y:auto; max-height:340px; border-top:1px solid var(--border); }
+  .ct-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .ct-table thead th {
+    background:var(--surface2); color:var(--text-faint); text-transform:uppercase;
+    letter-spacing:.04em; font-size:10px; font-weight:600;
+    padding:6px 10px; text-align:left; position:sticky; top:0; z-index:1; white-space:nowrap;
+  }
+  .ct-table tbody tr { border-bottom:1px solid var(--border2); }
+  .ct-table tbody tr:hover { background:var(--row-hover); }
+  .ct-table tbody td { padding:7px 10px; color:var(--text-td); vertical-align:top; }
+  .ct-col { white-space:nowrap; width:1%; }
+
+  /* ── Full detail table view ── */
+  .table-nav {
+    display:flex; align-items:center; gap:14px;
+    padding:9px 20px; background:var(--surface); border-bottom:1px solid var(--border);
+  }
+  .back-btn {
+    background:none; border:1px solid var(--border); color:var(--text-muted);
+    border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer;
+    transition:color .15s,border-color .15s;
+  }
+  .back-btn:hover { color:var(--text); border-color:var(--text-muted); }
+  .table-nav-title { font-size:14px; font-weight:600; color:var(--text-strong); }
+
+  .tab-content { padding:18px 20px; }
+  .tab-header { display:flex; align-items:center; justify-content:space-between;
+                 flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .tab-stats { display:flex; gap:8px; }
+  .stat-pill {
+    background:var(--surface); border:1px solid var(--border); color:var(--text-muted);
+    padding:4px 12px; border-radius:12px; font-size:12px; font-weight:500;
+  }
+  .tab-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .tab-filters input,.tab-filters select {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:6px 12px; border-radius:8px; font-size:12px; outline:none;
+  }
+  .tab-filters input { min-width:180px; }
+  .tab-filters input:focus,.tab-filters select:focus { border-color:var(--accent); }
+  .count-badge {
+    background:var(--surface); border:1px solid var(--border); color:var(--text-faint);
+    padding:4px 10px; border-radius:6px; font-size:11px;
+  }
+  .table-wrap { border-radius:8px; border:1px solid var(--border); overflow:auto; max-height:65vh; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th {
+    background:var(--surface2); color:var(--text-faint); text-transform:uppercase;
+    letter-spacing:.04em; font-size:11px; font-weight:600;
+    padding:10px 12px; text-align:left; position:sticky; top:0; z-index:1; white-space:nowrap;
+  }
+  tbody tr { border-bottom:1px solid var(--border2); transition:background .1s; }
+  tbody tr:hover { background:var(--row-hover); }
+  tbody tr.hidden { display:none; }
+  tbody td { padding:9px 12px; color:var(--text-td); vertical-align:top; }
+  a { color:var(--link); text-decoration:none; }
+  a:hover { color:var(--link-hover); text-decoration:underline; }
+  .badge {
+    display:inline-block; color:#fff; padding:2px 8px;
+    border-radius:4px; font-size:11px; font-weight:600; white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <span class="brand">Trilogy Dashboard</span>
+  <span class="header-meta">Generated April 06, 2026 at 09:45 AM &nbsp;·&nbsp; <strong>297</strong> open opps &nbsp;·&nbsp; <strong>$65.9M</strong> ARR</span>
+  <button class="refresh-btn" id="refresh-btn" onclick="refreshDashboard()">↻ Update</button>
+  <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">☾ Dark</button>
+</header>
+
+<div class="kpi-bar">
+  <div class="kpi-row">
+    <div class="kpi-card" onclick="openTab('gate1')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('gate1')"><div class="kpi-sub">140D No Engagement</div><div class="kpi-count" style="color:#0d9488">2</div><div class="kpi-title">Gate 1</div></div>
+<div class="kpi-card" onclick="openTab('gate2')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('gate2')"><div class="kpi-sub">90D Quote Not Sent</div><div class="kpi-count" style="color:#d97706">5</div><div class="kpi-title">Gate 2</div></div>
+<div class="kpi-card" onclick="openTab('gate3')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('gate3')"><div class="kpi-sub">30D Not Finalizing</div><div class="kpi-count" style="color:#ea580c">22</div><div class="kpi-title">Gate 3</div></div>
+<div class="kpi-card" onclick="openTab('gate4')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('gate4')"><div class="kpi-sub">0D Not Closed</div><div class="kpi-count" style="color:#dc2626">26</div><div class="kpi-title">Gate 4</div></div>
+<div class="kpi-card" onclick="openTab('not_touched')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('not_touched')"><div class="kpi-sub">This Week</div><div class="kpi-count" style="color:#6366f1">1</div><div class="kpi-title">Not Touched</div></div>
+<div class="kpi-card" onclick="openTab('past_due')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('past_due')"><div class="kpi-sub">Overdue</div><div class="kpi-count" style="color:#b91c1c">15</div><div class="kpi-title">Past Due</div></div>
+<div class="kpi-card" onclick="openTab('calls')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openTab('calls')"><div class="kpi-sub">Last 14 Days</div><div class="kpi-count" style="color:#0891b2">19</div><div class="kpi-title">Calls</div></div>
+  </div>
+</div>
+
+<div id="dashboard-body" class="dashboard-body">
+  <div class="gate-grid">
+    <div class="gate-card">
+  <div class="gate-card-hdr" style="border-top:3px solid #0d9488">
+    <div>
+      <div class="gate-card-title">Gate 1 Non-HVO: 140D No Engagement</div>
+      <div class="gate-card-meta">2 opps &nbsp;·&nbsp; $55K ARR</div>
+    </div>
+    <button class="view-all-btn" onclick="openTab('gate1')">View All →</button>
+  </div>
+  <div class="ct-wrap">
+    <table class="ct-table"><thead><tr><th>Opportunity</th><th>Owner</th><th>Renewal</th></tr></thead><tbody><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000OLlXaAAL/view" target="_blank">EMPIRE TELEPHONE CORPORATION -…</a><br><small style="color:#94a3b8">EMPIRE TELEPHONE CORPORATION</small></td><td class="ct-col">James</td><td class="ct-col">Jul 26, 2026</td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu000002zoA1AAI/view" target="_blank">HRWize - Kayako - Renewal - 17…</a><br><small style="color:#94a3b8">HRWize</small></td><td class="ct-col">Fredrik</td><td class="ct-col">Aug 02, 2026</td></tr></tbody></table>
+  </div>
+</div>
+<div class="gate-card">
+  <div class="gate-card-hdr" style="border-top:3px solid #d97706">
+    <div>
+      <div class="gate-card-title">Gate 2 Non-HVO: 90D Quote Not Sent</div>
+      <div class="gate-card-meta">5 opps &nbsp;·&nbsp; $132K ARR</div>
+    </div>
+    <button class="view-all-btn" onclick="openTab('gate2')">View All →</button>
+  </div>
+  <div class="ct-wrap">
+    <table class="ct-table"><thead><tr><th>Opportunity</th><th>Owner</th><th>Renewal</th></tr></thead><tbody><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxV6LAAV/view" target="_blank">USC Viterbi School of Engineer…</a><br><small style="color:#94a3b8">USC Viterbi School of Engineering</small></td><td class="ct-col">James</td><td class="ct-col">Jun 30, 2026</td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DyoCBAAZ/view" target="_blank">Pritchard Consulting - SPF Pri…</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td class="ct-col">James</td><td class="ct-col">Jun 30, 2026</td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000002hvO0IAI/view" target="_blank">Pritchard Consulting - SPF Pri…</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td class="ct-col">James</td><td class="ct-col">Jul 01, 2026</td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000002kUPcIAM/view" target="_blank">SPF Private Clients Limited - …</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td class="ct-col">James</td><td class="ct-col">Jul 01, 2026</td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu000002uM1WAAU/view" target="_blank">CT1_P2S - Jive - Renewal - 174…</a><br><small style="color:#94a3b8">P2S</small></td><td class="ct-col">James</td><td class="ct-col">Jul 01, 2026</td></tr></tbody></table>
+  </div>
+</div>
+<div class="gate-card">
+  <div class="gate-card-hdr" style="border-top:3px solid #ea580c">
+    <div>
+      <div class="gate-card-title">Gate 3: 30D Not Finalizing</div>
+      <div class="gate-card-meta">22 opps &nbsp;·&nbsp; $3.1M ARR</div>
+    </div>
+    <button class="view-all-btn" onclick="openTab('gate3')">View All →</button>
+  </div>
+  <div class="ct-wrap">
+    <table class="ct-table"><thead><tr><th>Opportunity</th><th>Owner</th><th>Due In</th></tr></thead><tbody><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004eURyIAM/view" target="_blank">Sectigo Ltd - Kayako - Renewal…</a><br><small style="color:#94a3b8">Sectigo Ltd</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">6d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjk5IAA/view" target="_blank">Genpact LLC - Khoros - Renewal…</a><br><small style="color:#94a3b8">Genpact LLC</small></td><td class="ct-col">Sebastian</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">8d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fnyFIAQ/view" target="_blank">COGITO DIGITAL - Oberthur Fidu…</a><br><small style="color:#94a3b8">Oberthur Fiduciaire</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">8d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FycvcAAB/view" target="_blank">IO Integration - Phototype Tex…</a><br><small style="color:#94a3b8">Phototype Texas</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">9d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004gXrBIAU/view" target="_blank">DPLAY ENTERTAINMENT LTD - Clou…</a><br><small style="color:#94a3b8">DPLAY ENTERTAINMENT LTD</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">9d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ebhbIAA/view" target="_blank">IO Integration - ReSources IT-…</a><br><small style="color:#94a3b8">ReSources IT-Saatchi & Saatchi Los </small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">10d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004f8oLIAQ/view" target="_blank">Carahsoft Technology Corp. - A…</a><br><small style="color:#94a3b8">Airforce 754 ELSG</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">10d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FycvSAAR/view" target="_blank">IO Integration - Phototype - N…</a><br><small style="color:#94a3b8">Phototype</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">11d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004enY6IAI/view" target="_blank">Akhter Computers Ltd - MoD Arm…</a><br><small style="color:#94a3b8">MoD Army Digital Services</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">12d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjl8IAA/view" target="_blank">Databricks - Khoros - Renewal …</a><br><small style="color:#94a3b8">Databricks</small></td><td class="ct-col">Sebastian</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">15d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fI2aIAE/view" target="_blank">1_SHI INTERNATIONAL CORP (BVSN…</a><br><small style="color:#94a3b8">Lockheed Martin Aeronotics</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">19d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004erShIAI/view" target="_blank">IO Integration - Imtech Graphi…</a><br><small style="color:#94a3b8">Imtech Graphics</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">20d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fFvGIAU/view" target="_blank">ConnectWise - Influitive - Ren…</a><br><small style="color:#94a3b8">ConnectWise</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">24d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO6JIAU/view" target="_blank">1_A1 Telekom Austria AG. - Clo…</a><br><small style="color:#94a3b8">A1 Telekom Austria AG.</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO8jIAE/view" target="_blank">Virgin Media Limited - Cloudse…</a><br><small style="color:#94a3b8">Virgin Media Limited</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO98IAE/view" target="_blank">Liberty Global Services B.V. (…</a><br><small style="color:#94a3b8">Liberty Global Services B.V. (NL)</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ezzAIAQ/view" target="_blank">Ministry for Primary Industrie…</a><br><small style="color:#94a3b8">Ministry for Primary Industries</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ezzUIAQ/view" target="_blank">Carleton University - Lyris (A…</a><br><small style="color:#94a3b8">Carleton University</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fFvLIAU/view" target="_blank">Autodesk Construction - Influi…</a><br><small style="color:#94a3b8">Autodesk Inc</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">25d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004f26lIAA/view" target="_blank">Geotab Italia S.R.L - Kayako -…</a><br><small style="color:#94a3b8">Geotab Italia S.R.L</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">27d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fDvZIAU/view" target="_blank">SUVI GLOBAL SERVICES LLC - US …</a><br><small style="color:#94a3b8">US Army - PSI-CoE</small></td><td class="ct-col">Fredrik</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">29d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjnwIAA/view" target="_blank">Harley Davidson, Inc - Khoros …</a><br><small style="color:#94a3b8">Harley Davidson, Inc</small></td><td class="ct-col">Sebastian</td><td class="ct-col"><span style="color:#ea580c;font-weight:600">30d</span></td></tr></tbody></table>
+  </div>
+</div>
+<div class="gate-card">
+  <div class="gate-card-hdr" style="border-top:3px solid #dc2626">
+    <div>
+      <div class="gate-card-title">Gate 4: 0D Not Closed</div>
+      <div class="gate-card-meta">26 opps &nbsp;·&nbsp; $275.3M ARR</div>
+    </div>
+    <button class="view-all-btn" onclick="openTab('gate4')">View All →</button>
+  </div>
+  <div class="ct-wrap">
+    <table class="ct-table"><thead><tr><th>Opportunity</th><th>Owner</th><th>Late</th></tr></thead><tbody><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DaBugAAF/view" target="_blank">Wyndham Vacation Ownership - I…</a><br><small style="color:#94a3b8">Travel + Leisure Resort Development</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">22d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003jIDfIAM/view" target="_blank">British Columbia Ferry Service…</a><br><small style="color:#94a3b8">British Columbia Ferry Services Inc</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">16d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxVVKAA3/view" target="_blank">M/I Homes, Inc. - Pivotal - Re…</a><br><small style="color:#94a3b8">M/I Homes, Inc.</small></td><td class="ct-col">Victor</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">7d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxUdQAAV/view" target="_blank">Hügli Nahrungsmittel GmbH - Au…</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td class="ct-col">Victor</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">6d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Az73eAAB/view" target="_blank">The Chronicle News - Olive Sof…</a><br><small style="color:#94a3b8">The Chronicle News</small></td><td class="ct-col">Najeeha</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUgxoAAD/view" target="_blank">Hügli Nahrungsmittel GmbH - AC…</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUh0JAAT/view" target="_blank">Hügli Nahrungsmittel GmbH - AC…</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUz5TAAT/view" target="_blank">Kingslake International Limite…</a><br><small style="color:#94a3b8">Seiko Epson Corporation</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Cdck8AAB/view" target="_blank">BDNF Inc, Ltd. - LGU+ - PeerAp…</a><br><small style="color:#94a3b8">LGU+</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DSygeAAD/view" target="_blank">Jewish Federations of North Am…</a><br><small style="color:#94a3b8">Jewish Federations of North America</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DT87JAAT/view" target="_blank">Kingslake International Limite…</a><br><small style="color:#94a3b8">Toshiba Plant Systems & Services Co</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DT87nAAD/view" target="_blank">AmBank Group - Computron - Ren…</a><br><small style="color:#94a3b8">AmBank Group</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DTyfzAAD/view" target="_blank">Finstar – Sociedade de Investi…</a><br><small style="color:#94a3b8">Finstar – Sociedade de Investimento</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000EZqczAAD/view" target="_blank">Vodafone Egypt Telecommunicati…</a><br><small style="color:#94a3b8">Vodafone Egypt Telecommunications S</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Ea2rHAAR/view" target="_blank">Taifon Computer Co Ltd - Taiwa…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Ea2rMAAR/view" target="_blank">Vodafone Egypt Telecommunicati…</a><br><small style="color:#94a3b8">Vodafone Egypt Telecommunications S</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000EaPEaAAN/view" target="_blank">Taifon Computer Co Ltd - Taiwa…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FyieOAAR/view" target="_blank">Hewlett-Packard Ltd. - NewNet …</a><br><small style="color:#94a3b8">Hewlett-Packard Ltd.</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lgfJIAQ/view" target="_blank">Netcare Hospitals (PTY) LTD - …</a><br><small style="color:#94a3b8">Netcare Hospitals (PTY) LTD</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lgg7IAA/view" target="_blank">CT2_Ripple Effect Group Pty Lt…</a><br><small style="color:#94a3b8">Australian Department of Defence - </small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lggbIAA/view" target="_blank">Ipsos GmbH - Tivian - Renewal …</a><br><small style="color:#94a3b8">Ipsos GmbH</small></td><td class="ct-col">Jay</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjjhIAA/view" target="_blank">2_Astellas - Khoros - Renewal …</a><br><small style="color:#94a3b8">Astellas US LLC</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjnNIAQ/view" target="_blank">1_Astellas - Khoros - Renewal …</a><br><small style="color:#94a3b8">Astellas US LLC</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjsiIAA/view" target="_blank">Electrify America - Khoros - R…</a><br><small style="color:#94a3b8">Electrify America</small></td><td class="ct-col">Tim</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000Iyw8TAAR/view" target="_blank">INVALID_City of Westminster - …</a><br><small style="color:#94a3b8">City of Westminster</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">5d</span></td></tr><tr><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000ACcYNAA1/view" target="_blank">Systra ICT - Kayako - 1535154 …</a><br><small style="color:#94a3b8">Systra ICT</small></td><td class="ct-col">James</td><td class="ct-col"><span style="color:#dc2626;font-weight:600">3d</span></td></tr></tbody></table>
+  </div>
+</div>
+  </div>
+</div>
+
+<div id="table-view" style="display:none">
+  <div class="table-nav">
+    <button class="back-btn" onclick="showDashboard()">← All Gates</button>
+    <span class="table-nav-title" id="table-nav-title"></span>
+  </div>
+  
+<div id="tab-gate1" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">2 opportunities</span><span class="stat-pill">$55K ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('gate1')">
+      <select class="tab-owner-filter" onchange="filterTabTable('gate1')">
+        <option value="">All Owners</option><option value="Fredrik Scheike">Fredrik Scheike</option><option value="James Quigley">James Quigley</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('gate1')">
+        <option value="">All Stages</option><option value="Outreach">Outreach</option>
+      </select>
+      <span class="count-badge" id="count-gate1">2 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-gate1">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>ARR</th><th>Renewal Date</th><th>Stage</th><th>Last Activity</th><th>Churn Risk</th><th>Next FU</th></tr></thead>
+      <tbody><tr data-owner="James Quigley" data-stage="Outreach" data-search="empire telephone corporation - kandy - renewal - 1212874 - 7_2026james quigleyempire telephone corporationkandy"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000OLlXaAAL/view" target="_blank">EMPIRE TELEPHONE CORPORATION - Kandy - Renewa…</a><br><small style="color:#94a3b8">EMPIRE TELEPHONE CORPORATION</small></td><td>James Quigley</td><td>$50K</td><td>Jul 26, 2026</td><td>Outreach</td><td>Apr 03, 2026 <small style="color:#64748b">(3d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>—</td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Outreach" data-search="hrwize - kayako - renewal - 1711475 - 8_2026fredrik scheikehrwizekayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu000002zoA1AAI/view" target="_blank">HRWize - Kayako - Renewal - 1711475 - 8_2026</a><br><small style="color:#94a3b8">HRWize</small></td><td>Fredrik Scheike</td><td>$5K</td><td>Aug 02, 2026</td><td>Outreach</td><td>Apr 04, 2026 <small style="color:#64748b">(2d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>—</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-gate2" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">5 opportunities</span><span class="stat-pill">$132K ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('gate2')">
+      <select class="tab-owner-filter" onchange="filterTabTable('gate2')">
+        <option value="">All Owners</option><option value="James Quigley">James Quigley</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('gate2')">
+        <option value="">All Stages</option><option value="Engaged">Engaged</option><option value="Proposal">Proposal</option>
+      </select>
+      <span class="count-badge" id="count-gate2">5 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-gate2">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>ARR</th><th>Renewal Date</th><th>Stage</th><th>Last Activity</th><th>Churn Risk</th><th>Next FU</th></tr></thead>
+      <tbody><tr data-owner="James Quigley" data-stage="Engaged" data-search="usc viterbi school of engineering - lyris (aem) - 1845601 - renewal - 6_2026james quigleyusc viterbi school of engineeringlyris (aem)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxV6LAAV/view" target="_blank">USC Viterbi School of Engineering - Lyris (AE…</a><br><small style="color:#94a3b8">USC Viterbi School of Engineering</small></td><td>James Quigley</td><td>$12K</td><td>Jun 30, 2026</td><td>Engaged</td><td>Mar 11, 2026 <small style="color:#64748b">(26d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Proposal" data-search="pritchard consulting - spf private clients limited - pivotal - renewal - 1303935 - 6_2026_10usersjames quigleyspf private clients limitedpivotal"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DyoCBAAZ/view" target="_blank">Pritchard Consulting - SPF Private Clients Li…</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td>James Quigley</td><td>$35K</td><td>Jun 30, 2026</td><td>Proposal</td><td>Apr 01, 2026 <small style="color:#64748b">(5d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>Mar 25, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Proposal" data-search="pritchard consulting - spf private clients limited - pivotal - renewal - 1471525 - 7_2026james quigleyspf private clients limitedpivotal"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000002hvO0IAI/view" target="_blank">Pritchard Consulting - SPF Private Clients Li…</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td>James Quigley</td><td>$35K</td><td>Jul 01, 2026</td><td>Proposal</td><td>Apr 03, 2026 <small style="color:#64748b">(3d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>Mar 25, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Proposal" data-search="spf private clients limited - pivotal - renewal - 1530117 - 7_2026_10usersjames quigleyspf private clients limitedpivotal"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000002kUPcIAM/view" target="_blank">SPF Private Clients Limited - Pivotal - Renew…</a><br><small style="color:#94a3b8">SPF Private Clients Limited</small></td><td>James Quigley</td><td>$35K</td><td>Jul 01, 2026</td><td>Proposal</td><td>Apr 02, 2026 <small style="color:#64748b">(4d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>Mar 25, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Proposal" data-search="ct1_p2s - jive - renewal - 1743487 - 7_2026james quigleyp2sjive"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu000002uM1WAAU/view" target="_blank">CT1_P2S - Jive - Renewal - 1743487 - 7_2026</a><br><small style="color:#94a3b8">P2S</small></td><td>James Quigley</td><td>$15K</td><td>Jul 01, 2026</td><td>Proposal</td><td>Apr 02, 2026 <small style="color:#64748b">(4d ago)</small></td><td><span class="badge" style="background:#94a3b8">Unknown</span></td><td>Apr 01, 2026</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-gate3" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">22 opportunities</span><span class="stat-pill">$3.1M ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('gate3')">
+      <select class="tab-owner-filter" onchange="filterTabTable('gate3')">
+        <option value="">All Owners</option><option value="Fredrik Scheike">Fredrik Scheike</option><option value="James Quigley">James Quigley</option><option value="James Stothard">James Stothard</option><option value="Sebastian Desand">Sebastian Desand</option><option value="Tim Courtenay">Tim Courtenay</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('gate3')">
+        <option value="">All Stages</option><option value="Quote Follow-Up">Quote Follow-Up</option>
+      </select>
+      <span class="count-badge" id="count-gate3">22 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-gate3">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>Current ARR</th><th>Offer ARR</th><th>Renewal Date</th><th>Days Late</th><th>Stage</th><th>Win Type</th><th>Next Step</th></tr></thead>
+      <tbody><tr data-owner="James Stothard" data-stage="Quote Follow-Up" data-search="sectigo ltd - kayako - renewal - 1663029 - 4_2026james stothardsectigo ltdkayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004eURyIAM/view" target="_blank">Sectigo Ltd - Kayako - Renewal - 1663029 - 4_…</a><br><small style="color:#94a3b8">Sectigo Ltd</small></td><td>James Stothard</td><td>$9K</td><td>$12K</td><td>Apr 12, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03/30/2026 James Stothard: Customer has sent a 5 year PO. they said the quote has to be routed through their docusign to be processed and currently doing that">03/30/2026 James Stothard: Customer has …</span></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Quote Follow-Up" data-search="genpact llc - khoros - renewal - 1702737 - 4_2026_care&marketingsebastian desandgenpact llckhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjk5IAA/view" target="_blank">Genpact LLC - Khoros - Renewal - 1702737 - 4_…</a><br><small style="color:#94a3b8">Genpact LLC</small></td><td>Sebastian Desand</td><td>$155K</td><td>$194K</td><td>Apr 14, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="04/01/2026 Sebastian Desand: Sent third follow-up to Sara Beirne (Genpact) requesting formal cancellation notice to cancellations@trilogy.com and a brief call to discuss the decision. Next step: await response from Sara.">04/01/2026 Sebastian Desand: Sent third …</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="cogito digital - oberthur fiduciaire - northplains - renewal - 1713178 - 4_2026fredrik scheikeoberthur fiduciairenorthplains"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fnyFIAQ/view" target="_blank">COGITO DIGITAL - Oberthur Fiduciaire - NorthP…</a><br><small style="color:#94a3b8">Oberthur Fiduciaire</small></td><td>Fredrik Scheike</td><td>$4K</td><td>$5K</td><td>Apr 14, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="04-02-2026 Fredrik Scheike: Chase final decision after Easter">04-02-2026 Fredrik Scheike: Chase final …</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="io integration - phototype texas - northplains - renewal - 4_2026fredrik scheikephototype texasnorthplains"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FycvcAAB/view" target="_blank">IO Integration - Phototype Texas - NorthPlain…</a><br><small style="color:#94a3b8">Phototype Texas</small></td><td>Fredrik Scheike</td><td>$4K</td><td>$6K</td><td>Apr 15, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-30-2026 Fredrik Scheike: Still no renewal intent. Pushed for PO before EoW next week.">03-30-2026 Fredrik Scheike: Still no ren…</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="dplay entertainment ltd - cloudsense - renewal - 1729540 - 4_2026tim courtenaydplay entertainment ltdcloudsense"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004gXrBIAU/view" target="_blank">DPLAY ENTERTAINMENT LTD - Cloudsense - Renewa…</a><br><small style="color:#94a3b8">DPLAY ENTERTAINMENT LTD</small></td><td>Tim Courtenay</td><td>$325K</td><td>$472K</td><td>Apr 15, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="LIKELY TO WIN. Follow up on urgent attention required from Dario to get the SOW signed. 04/02/2026 Tim Courtenay">LIKELY TO WIN. Follow up on urgent atten…</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="io integration - resources it-saatchi & saatchi los angeles - northplains - renewal - 1682363 - 4_2026fredrik scheikeresources it-saatchi & saatchi los angelesnorthplains"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ebhbIAA/view" target="_blank">IO Integration - ReSources IT-Saatchi & Saatc…</a><br><small style="color:#94a3b8">ReSources IT-Saatchi & Saatchi Los </small></td><td>Fredrik Scheike</td><td>$15K</td><td>$19K</td><td>Apr 16, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-30-2026 Fredrik Scheike: Still no clear Renewal intent. Pushed for resolution by 04/10.">03-30-2026 Fredrik Scheike: Still no cle…</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Quote Follow-Up" data-search="carahsoft technology corp. - airforce 754 elsg - lyris (aem) - renewal - 1695101 - 4_2026james stothardairforce 754 elsglyris (aem)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004f8oLIAQ/view" target="_blank">Carahsoft Technology Corp. - Airforce 754 ELS…</a><br><small style="color:#94a3b8">Airforce 754 ELSG</small></td><td>James Stothard</td><td>$35K</td><td>$51K</td><td>Apr 16, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="followed up the reseller to see if they made contact 03/27/2026 James Stothard">followed up the reseller to see if they …</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="io integration - phototype - northplains - renewal - 4_2026fredrik scheikephototypenorthplains"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FycvSAAR/view" target="_blank">IO Integration - Phototype - NorthPlains - Re…</a><br><small style="color:#94a3b8">Phototype</small></td><td>Fredrik Scheike</td><td>$19K</td><td>$23K</td><td>Apr 17, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-31-2026 Fredrik Scheike: Renewal intent unknown. Pushed for PO by EoW next week.">03-31-2026 Fredrik Scheike: Renewal inte…</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Quote Follow-Up" data-search="akhter computers ltd - mod army digital services - kayako - renewal - 1689281 - 4_2026james stothardmod army digital serviceskayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004enY6IAI/view" target="_blank">Akhter Computers Ltd - MoD Army Digital Servi…</a><br><small style="color:#94a3b8">MoD Army Digital Services</small></td><td>James Stothard</td><td>$45K</td><td>$56K</td><td>Apr 18, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>Self-Serve</td><td style="max-width:220px"><span title="03/27/2026 James Stothard - chasing the reseller for a progress update">03/27/2026 James Stothard - chasing the …</span></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Quote Follow-Up" data-search="databricks - khoros - renewal - 1702576 - 4_2026_community&caresebastian desanddatabrickskhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjl8IAA/view" target="_blank">Databricks - Khoros - Renewal - 1702576 - 4_2…</a><br><small style="color:#94a3b8">Databricks</small></td><td>Sebastian Desand</td><td>$270K</td><td>$338K</td><td>Apr 21, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="04/02/2026 Sebastian Desand: Followed up to clarify Aurora migration is contingent on signed quote before renewal date.">04/02/2026 Sebastian Desand: Followed up…</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Quote Follow-Up" data-search="1_shi international corp (bvsn) - lockheed martin aeronotics - broadvision - renewal - 1697512 - 4_2026james stothardlockheed martin aeronoticsbroadvision"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fI2aIAE/view" target="_blank">1_SHI INTERNATIONAL CORP (BVSN) - Lockheed Ma…</a><br><small style="color:#94a3b8">Lockheed Martin Aeronotics</small></td><td>James Stothard</td><td>$20K</td><td>$25K</td><td>Apr 25, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03/27/2026 James Stothard: Followed up with SHI reseller, it still look like this will be cotermed to end in  11/23/27">03/27/2026 James Stothard: Followed up w…</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="io integration - imtech graphics - northplains - renewal - 1681963 - 4_2026fredrik scheikeimtech graphicsnorthplains"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004erShIAI/view" target="_blank">IO Integration - Imtech Graphics - NorthPlain…</a><br><small style="color:#94a3b8">Imtech Graphics</small></td><td>Fredrik Scheike</td><td>$15K</td><td>$19K</td><td>Apr 26, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-31-2026 Fredrik Scheike: Renewal intent still unknown. Pushed for PO/decision by EoW next week.">03-31-2026 Fredrik Scheike: Renewal inte…</span></td></tr>
+<tr data-owner="James Quigley" data-stage="Quote Follow-Up" data-search="connectwise - influitive - renewal - 1696311 - 4_2026james quigleyconnectwiseinfluitive"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fFvGIAU/view" target="_blank">ConnectWise - Influitive - Renewal - 1696311 …</a><br><small style="color:#94a3b8">ConnectWise</small></td><td>James Quigley</td><td>$35K</td><td>$44K</td><td>Apr 30, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03/30/2026 James Quigley: Chasing up SQ - client pushing back on price">03/30/2026 James Quigley: Chasing up SQ …</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="1_a1 telekom austria ag. - cloudsense - renewal - 1558386 - 5_2026tim courtenaya1 telekom austria ag.cloudsense"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO6JIAU/view" target="_blank">1_A1 Telekom Austria AG. - Cloudsense - Renew…</a><br><small style="color:#94a3b8">A1 Telekom Austria AG.</small></td><td>Tim Courtenay</td><td>$450K</td><td>$587K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="Touch base w/c 4/13. 04/05/2026 Tim Courtenay">Touch base w/c 4/13. 04/05/2026 Tim Cour…</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="virgin media limited - cloudsense - renewal - 1558418 - 5_2026tim courtenayvirgin media limitedcloudsense"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO8jIAE/view" target="_blank">Virgin Media Limited - Cloudsense - Renewal -…</a><br><small style="color:#94a3b8">Virgin Media Limited</small></td><td>Tim Courtenay</td><td>$499K</td><td>$624K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="Follow up quote referencing MSA and including overrides. 04/02/2026 Tim Courtenay">Follow up quote referencing MSA and incl…</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="liberty global services b.v. (nl) - cloudsense - 1801104 - renewal - 5_2026tim courtenayliberty global services b.v. (nl)cloudsense"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003iO98IAE/view" target="_blank">Liberty Global Services B.V. (NL) - Cloudsens…</a><br><small style="color:#94a3b8">Liberty Global Services B.V. (NL)</small></td><td>Tim Courtenay</td><td>$5K</td><td>$38K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="Advise Gia whether we can reference the MSA with quote overrides. 04/02/2026 Tim Courtenay">Advise Gia whether we can reference the …</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="ministry for primary industries - dnn - renewal - 1692593 - 5_2026fredrik scheikeministry for primary industriesdnn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ezzAIAQ/view" target="_blank">Ministry for Primary Industries - DNN - Renew…</a><br><small style="color:#94a3b8">Ministry for Primary Industries</small></td><td>Fredrik Scheike</td><td>$35K</td><td>$51K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-30-2026 Fredrik Scheike: AR protects win. Sits with CIO. Pushed to close this week.">03-30-2026 Fredrik Scheike: AR protects …</span></td></tr>
+<tr data-owner="James Quigley" data-stage="Quote Follow-Up" data-search="carleton university - lyris (aem) - renewal - 1675152 - 5_2026james quigleycarleton universitylyris (aem)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004ezzUIAQ/view" target="_blank">Carleton University - Lyris (AEM) - Renewal -…</a><br><small style="color:#94a3b8">Carleton University</small></td><td>James Quigley</td><td>$21K</td><td>$26K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>Self-Serve</td><td style="max-width:220px"><span title="04/01/2026 James Quigley: procurement looking for info on liabilities - raised VR">04/01/2026 James Quigley: procurement lo…</span></td></tr>
+<tr data-owner="James Quigley" data-stage="Quote Follow-Up" data-search="autodesk construction - influitive - renewal - 1696511 - 5_2026james quigleyautodesk incinfluitive"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fFvLIAU/view" target="_blank">Autodesk Construction - Influitive - Renewal …</a><br><small style="color:#94a3b8">Autodesk Inc</small></td><td>James Quigley</td><td>$115K</td><td>$144K</td><td>May 01, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03/27/2026 James Quigley: resending quote to signatory">03/27/2026 James Quigley: resending quot…</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="geotab italia s.r.l - kayako - renewal - 1671936 - 5_2026fredrik scheikegeotab italia s.r.lkayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004f26lIAA/view" target="_blank">Geotab Italia S.R.L - Kayako - Renewal - 1671…</a><br><small style="color:#94a3b8">Geotab Italia S.R.L</small></td><td>Fredrik Scheike</td><td>$34K</td><td>$42K</td><td>May 03, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="03-23-2026 Fredrik Scheike: Likely win: Chase SQ.">03-23-2026 Fredrik Scheike: Likely win: …</span></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Quote Follow-Up" data-search="suvi global services llc - us army - psi-coe - dnn - renewal - 1694798 - 5_2026fredrik scheikeus army - psi-coednn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fDvZIAU/view" target="_blank">SUVI GLOBAL SERVICES LLC - US Army - PSI-CoE …</a><br><small style="color:#94a3b8">US Army - PSI-CoE</small></td><td>Fredrik Scheike</td><td>$31K</td><td>$39K</td><td>May 05, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="04-02-2026 Fredrik Scheike: Chasing signature.">04-02-2026 Fredrik Scheike: Chasing sign…</span></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Quote Follow-Up" data-search="harley davidson, inc - khoros - renewal - 1702606 - 5_2026sebastian desandharley davidson, inckhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjnwIAA/view" target="_blank">Harley Davidson, Inc - Khoros - Renewal - 170…</a><br><small style="color:#94a3b8">Harley Davidson, Inc</small></td><td>Sebastian Desand</td><td>$235K</td><td>$294K</td><td>May 06, 2026</td><td><span style="color:#ef4444;font-weight:600">0d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="04/03/2026 Sebastian Desand: Cancellation request denied by cancellations team since it was issued 1 month after the deadline. Will follow up with the customer.">04/03/2026 Sebastian Desand: Cancellatio…</span></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-gate4" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">26 opportunities</span><span class="stat-pill">$275.3M ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('gate4')">
+      <select class="tab-owner-filter" onchange="filterTabTable('gate4')">
+        <option value="">All Owners</option><option value="James Quigley">James Quigley</option><option value="James Stothard">James Stothard</option><option value="Jay Khalife">Jay Khalife</option><option value="Najeeha Humayun">Najeeha Humayun</option><option value="Tim Courtenay">Tim Courtenay</option><option value="Victor Wang">Victor Wang</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('gate4')">
+        <option value="">All Stages</option><option value="Co-Term">Co-Term</option><option value="Outreach">Outreach</option><option value="Quote Follow-Up">Quote Follow-Up</option><option value="Won't Process">Won't Process</option>
+      </select>
+      <span class="count-badge" id="count-gate4">26 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-gate4">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>Current ARR</th><th>Offer ARR</th><th>Renewal Date</th><th>Days Late</th><th>Stage</th><th>Win Type</th><th>Next Step</th></tr></thead>
+      <tbody><tr data-owner="Tim Courtenay" data-stage="Won't Process" data-search="wyndham vacation ownership - ignite misc - renewal - 3_2026tim courtenaytravel + leisure resort development, inc.ignite misc"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DaBugAAF/view" target="_blank">Wyndham Vacation Ownership - Ignite Misc - Re…</a><br><small style="color:#94a3b8">Travel + Leisure Resort Development</small></td><td>Tim Courtenay</td><td>$359K</td><td>$449K</td><td>Mar 15, 2026</td><td><span style="color:#ef4444;font-weight:600">22d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Won't Process" data-search="british columbia ferry services inc. - responsetek - renewal - 1605469 - 3_2026tim courtenaybritish columbia ferry services inc.responsetek"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003jIDfIAM/view" target="_blank">British Columbia Ferry Services Inc. - Respon…</a><br><small style="color:#94a3b8">British Columbia Ferry Services Inc</small></td><td>Tim Courtenay</td><td>$215K</td><td>$312K</td><td>Mar 21, 2026</td><td><span style="color:#ef4444;font-weight:600">16d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px"><span title="10/01/2025 Julius Librando: Warm intro requested from AM">10/01/2025 Julius Librando: Warm intro r…</span></td></tr>
+<tr data-owner="Victor Wang" data-stage="Won't Process" data-search="m/i homes, inc. - pivotal - renewal - 3_2026victor wangm/i homes, inc.pivotal"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxVVKAA3/view" target="_blank">M/I Homes, Inc. - Pivotal - Renewal - 3_2026</a><br><small style="color:#94a3b8">M/I Homes, Inc.</small></td><td>Victor Wang</td><td>$10K</td><td>$13K</td><td>Mar 30, 2026</td><td><span style="color:#ef4444;font-weight:600">7d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Victor Wang" data-stage="Won't Process" data-search="hügli nahrungsmittel gmbh - aurea crm - renewal - 3_2026victor wanghügli nahrungsmittel gmbhacrm"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxUdQAAV/view" target="_blank">Hügli Nahrungsmittel GmbH - Aurea CRM - Renew…</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td>Victor Wang</td><td>$71K</td><td>$88K</td><td>Mar 31, 2026</td><td><span style="color:#ef4444;font-weight:600">6d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Najeeha Humayun" data-stage="Won't Process" data-search="the chronicle news - olive software - renewal - 4_2026najeeha humayunthe chronicle newsolive software"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Az73eAAB/view" target="_blank">The Chronicle News - Olive Software - Renewal…</a><br><small style="color:#94a3b8">The Chronicle News</small></td><td>Najeeha Humayun</td><td>$5K</td><td>$6K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="hügli nahrungsmittel gmbh - acrm - renewal - 4_2026james stothardhügli nahrungsmittel gmbhacrm"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUgxoAAD/view" target="_blank">Hügli Nahrungsmittel GmbH - ACRM - Renewal - …</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td>James Stothard</td><td>$55K</td><td>$69K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px"><span title="02/25/2025 Alvy:  Invalid opp, OEM">02/25/2025 Alvy:  Invalid opp, OEM</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="hügli nahrungsmittel gmbh - acrm - renewal - 4_2026james stothardhügli nahrungsmittel gmbhacrm"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUh0JAAT/view" target="_blank">Hügli Nahrungsmittel GmbH - ACRM - Renewal - …</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td>James Stothard</td><td>$2K</td><td>$3K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="kingslake international limited (aikk)) - seiko epson corporation - aurea platform - renewal - 4_2026james stothardseiko epson corporationaurea platform"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUz5TAAT/view" target="_blank">Kingslake International Limited (AIKK)) - Sei…</a><br><small style="color:#94a3b8">Seiko Epson Corporation</small></td><td>James Stothard</td><td>$41K</td><td>$51K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="bdnf inc, ltd. - lgu+ - peerapp - renewal - 4_2026james quigleylgu+peerapp"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Cdck8AAB/view" target="_blank">BDNF Inc, Ltd. - LGU+ - PeerApp - Renewal - 4…</a><br><small style="color:#94a3b8">LGU+</small></td><td>James Quigley</td><td>$40K</td><td>$50K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="jewish federations of north america - lyris (aem) - renewal - 4_2026james stothardjewish federations of north americalyris (aem)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DSygeAAD/view" target="_blank">Jewish Federations of North America - Lyris (…</a><br><small style="color:#94a3b8">Jewish Federations of North America</small></td><td>James Stothard</td><td>—</td><td>—</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="kingslake international limited (aikk)) - toshiba plant systems & services corporation - artemis (aps) - renewal - 4_202james quigleytoshiba plant systems & services corporationartemis (aps)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DT87JAAT/view" target="_blank">Kingslake International Limited (AIKK)) - Tos…</a><br><small style="color:#94a3b8">Toshiba Plant Systems & Services Co</small></td><td>James Quigley</td><td>$4.6M</td><td>$5.8M</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="ambank group - computron - renewal - 4_2026tim courtenayambank groupcomputron"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DT87nAAD/view" target="_blank">AmBank Group - Computron - Renewal - 4_2026</a><br><small style="color:#94a3b8">AmBank Group</small></td><td>Tim Courtenay</td><td>$1.4M</td><td>$1.4M</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="WILL WIN. Discuss Schedule 4 (AB&C) blocker and way forward with the customer and the BU. 04/05/2026 Tim Courtenay">WILL WIN. Discuss Schedule 4 (AB&C) bloc…</span></td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="finstar – sociedade de investimentos e participações sa - peerapp - renewal - 4_2026james quigleyfinstar – sociedade de investimentos e participações sapeerapp"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DTyfzAAD/view" target="_blank">Finstar – Sociedade de Investimentos e Partic…</a><br><small style="color:#94a3b8">Finstar – Sociedade de Investimento</small></td><td>James Quigley</td><td>$78K</td><td>$97K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Won't Process" data-search="vodafone egypt telecommunications sa - newnet - renewal - 4_2026tim courtenayvodafone egypt telecommunications sanewnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000EZqczAAD/view" target="_blank">Vodafone Egypt Telecommunications SA - NewNet…</a><br><small style="color:#94a3b8">Vodafone Egypt Telecommunications S</small></td><td>Tim Courtenay</td><td>$153K</td><td>$222K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px"><span title="Check HVO Opp prep doen and opp is clean, 08/25/2025 Tim Courtenay">Check HVO Opp prep doen and opp is clean…</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="taifon computer co ltd - taiwan mobile co.,ltd. (twm) - newnet - renewal - 4_2026james stothardtaiwan mobile co.,ltd. (twm)newnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Ea2rHAAR/view" target="_blank">Taifon Computer Co Ltd - Taiwan Mobile Co.,Lt…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td>James Stothard</td><td>$32K</td><td>$40K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Won't Process" data-search="vodafone egypt telecommunications sa - newnet - renewal - 4_2026tim courtenayvodafone egypt telecommunications sanewnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Ea2rMAAR/view" target="_blank">Vodafone Egypt Telecommunications SA - NewNet…</a><br><small style="color:#94a3b8">Vodafone Egypt Telecommunications S</small></td><td>Tim Courtenay</td><td>$153K</td><td>$192K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="taifon computer co ltd - taiwan mobile co.,ltd. (twm) - newnet - renewal - 4_2026james stothardtaiwan mobile co.,ltd. (twm)newnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000EaPEaAAN/view" target="_blank">Taifon Computer Co Ltd - Taiwan Mobile Co.,Lt…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td>James Stothard</td><td>$32K</td><td>$40K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Won't Process" data-search="hewlett-packard ltd. - newnet - renewal - 4_2026tim courtenayhewlett-packard ltd.newnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000FyieOAAR/view" target="_blank">Hewlett-Packard Ltd. - NewNet - Renewal - 4_2…</a><br><small style="color:#94a3b8">Hewlett-Packard Ltd.</small></td><td>Tim Courtenay</td><td>$2.1M</td><td>$2.6M</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px"><span title="INVALID OPP">INVALID OPP</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="netcare hospitals (pty) ltd - dnn - renewal - 1668733 - 4_2026tim courtenaynetcare hospitals (pty) ltddnn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lgfJIAQ/view" target="_blank">Netcare Hospitals (PTY) LTD - DNN - Renewal -…</a><br><small style="color:#94a3b8">Netcare Hospitals (PTY) LTD</small></td><td>Tim Courtenay</td><td>$82K</td><td>$82K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="WILL WIN. Extension granted to 4/14. Follow up with customer on approving amendment for signature. 04/05/2026 Tim Courtenay">WILL WIN. Extension granted to 4/14. Fol…</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Co-Term" data-search="ct2_ripple effect group pty ltd - australian department of defence - support - jive - renewal - 1648983 - 4_2026_1kqtytim courtenayaustralian department of defence - supportjive"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lgg7IAA/view" target="_blank">CT2_Ripple Effect Group Pty Ltd - Australian …</a><br><small style="color:#94a3b8">Australian Department of Defence - </small></td><td>Tim Courtenay</td><td>$74K</td><td>—</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Co-Term</td><td>Co-Term</td><td style="max-width:220px"><span title="LIKELY TO WIN. Reseller to sign Amendment 3. Follow-up meeting requested. 01/05/2026 Tim Courtenay">LIKELY TO WIN. Reseller to sign Amendmen…</span></td></tr>
+<tr data-owner="Jay Khalife" data-stage="Won't Process" data-search="ipsos gmbh - tivian - renewal - 1658008 - 4_2026jay khalifeipsos gmbhtivian"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lggbIAA/view" target="_blank">Ipsos GmbH - Tivian - Renewal - 1658008 - 4_2…</a><br><small style="color:#94a3b8">Ipsos GmbH</small></td><td>Jay Khalife</td><td>$8K</td><td>$2</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Outreach" data-search="2_astellas - khoros - renewal - 1702558 - 4_2026 pstim courtenayastellas us llckhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjjhIAA/view" target="_blank">2_Astellas - Khoros - Renewal - 1702558 - 4_2…</a><br><small style="color:#94a3b8">Astellas US LLC</small></td><td>Tim Courtenay</td><td>$50K</td><td>$63K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Outreach</td><td>—</td><td style="max-width:220px"><span title="03/17/2026 David Morris: This opp is in a legal dispute and frozen from Core Renewals perspective">03/17/2026 David Morris: This opp is in …</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Outreach" data-search="1_astellas - khoros - renewal - 1702559 - 4_2026_marketingtim courtenayastellas us llckhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjnNIAQ/view" target="_blank">1_Astellas - Khoros - Renewal - 1702559 - 4_2…</a><br><small style="color:#94a3b8">Astellas US LLC</small></td><td>Tim Courtenay</td><td>$124K</td><td>$155K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Outreach</td><td>—</td><td style="max-width:220px"><span title="03/17/2026 David Morris: This opp is in a legal dispute and frozen from Core Renewals perspective">03/17/2026 David Morris: This opp is in …</span></td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="electrify america - khoros - renewal - 1702243 - 4_2026tim courtenayelectrify americakhoros"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fjsiIAA/view" target="_blank">Electrify America - Khoros - Renewal - 170224…</a><br><small style="color:#94a3b8">Electrify America</small></td><td>Tim Courtenay</td><td>$88K</td><td>$110K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Quote Follow-Up</td><td>—</td><td style="max-width:220px"><span title="Send redline response to customer. 04/05/2026 Tim Courtenay">Send redline response to customer. 04/05…</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="invalid_city of westminster - dnn - 1188112 - renewal - 4_2026james stothardcity of westminsterdnn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000Iyw8TAAR/view" target="_blank">INVALID_City of Westminster - DNN - 1188112 -…</a><br><small style="color:#94a3b8">City of Westminster</small></td><td>James Stothard</td><td>$15K</td><td>$22K</td><td>Apr 01, 2026</td><td><span style="color:#ef4444;font-weight:600">5d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px"><span title="Invalid Duplicate opp">Invalid Duplicate opp</span></td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="systra ict - kayako - 1535154 - renewal - 4_2026james stothardsystra ictkayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000ACcYNAA1/view" target="_blank">Systra ICT - Kayako - 1535154 - Renewal - 4_2…</a><br><small style="color:#94a3b8">Systra ICT</small></td><td>James Stothard</td><td>$4K</td><td>$5K</td><td>Apr 03, 2026</td><td><span style="color:#ef4444;font-weight:600">3d</span></td><td>Won't Process</td><td>—</td><td style="max-width:220px">—</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-not_touched" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">1 opportunities</span><span class="stat-pill">$25K ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('not_touched')">
+      <select class="tab-owner-filter" onchange="filterTabTable('not_touched')">
+        <option value="">All Owners</option><option value="James Stothard">James Stothard</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('not_touched')">
+        <option value="">All Stages</option><option value="Quote Follow-Up">Quote Follow-Up</option>
+      </select>
+      <span class="count-badge" id="count-not_touched">1 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-not_touched">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>ARR</th><th>Close Date</th><th>Age</th><th>Last Modified</th><th>Last Activity</th><th>Description</th></tr></thead>
+      <tbody><tr data-owner="James Stothard" data-stage="Quote Follow-Up" data-search="1_shi international corp (bvsn) - lockheed martin aeronotics - broadvision - renewal - 1697512 - 4_2026james stothardlockheed martin aeronoticsbroadvision"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000004fI2aIAE/view" target="_blank">1_SHI INTERNATIONAL CORP (BVSN) - Lockheed Ma…</a><br><small style="color:#94a3b8">Lockheed Martin Aeronotics</small></td><td>James Stothard</td><td>$25K</td><td>Mar 26, 2026</td><td>326d</td><td>Apr 04, 2026</td><td>10d ago</td><td style="max-width:240px"><span title="03/27/2026 James Stothard: Followed up with SHI reseller, it still look like this will be cotermed to end in  11/23/27 
+
+3/19/26 Venus Laney: received CASE - Henry asking for quote details. looped in ISR as it appears that another opp is being co termed.
+
+03/17/26 SYSTEM - Quote Q-47889 is out for signature, moving the opportunity to the Quote Follow-Up stage.
+
+03/17/2026 SYSTEM - Quote Q-47889 is Accepted. Approver Comments  -  Co-term quote approval - David M 03/17/2026
+
+3/16/2026 Ana Roman: Generated C/T quote:
+Q-47889
+Product: BroadVision QuickSilver MAINTENANCE, STANDARD EDITION, STANDARD SUCCESS
+Entitlements: Opp 1: 5 licenses + Opp 2: 115 licenses
+Success: Standard (25% uplift)
+Term: 19 months (opp 1 renewing from 4/25/26 to 11/22/27 | opp2 renewing for 1yr from 11/23/26 to 11/22/27)
+ARR: USD 193,100.775
+TCV: USD 207,684.11
+Opp1: Current ARR 20,000 * 1.25 = 25,000 for 12MO term (renewal term is for 19 MO, TCV: 39,583.33)
+Opp2: Current ARR 134,480.62 * 1.25 = 168,100.775
+TCV: opp1 39,583.33 + opp 2 168,100.775 = 207,684.11
+
+03/16/2026 James Stothard: SHI has asked us to co-term this opportunity to the one linked below, with an end date of 11/23/2027, sending a new quote 
+https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000EhUh7AAF/view
+
+03/08/2026 James Stothard: SHI have been chasing the end user but are yet to have any communication from them 
+
+02/12/26 SYSTEM - Quote Q-47370 is out for signature, moving the opportunity to the Quote Follow-Up stage.
+
+02/12/2025 James Stothard: Charles Garber from SHI requested a quote, sending it out and requested a call 
+
+01/15/26 SYSTEM - Quote Q-42910 is out for signature, moving the opportunity to the Quote Follow-Up stage.
+
+01/15/2026 SYSTEM - Quote Q-42910 is Accepted. Approver Comments  -  Quote approved - David M - 01/15/2026
+
+1/14/26 Venus Laney: called Charles, Henry, NIck and CHris, all no answer. updated PQ-gate2
+ITEM: BroadVision QuickSilver MAINTENANCE,
+Success: Standard
+Term: 12months
+Amount: USD 25,000.00
+
+1/7/26 Venus Laney: called Charles, Henry and Nick, no answer. called CHris, connection issues so call dropped. called again, this time no answer.
+
+12/17/25 Venus Laney: called Chris, Charles, Nick and Henry, no answer.
+
+12/8/25 Venus Laney: called Charles, Nick and Henry, all no answer.
+
+12/3/25 Venus Laney: per ISR and Sales Ops, this was not cotermed to main opp. called Charles and Nick, both no answer. called Henry, left VM
+
+09/01/2025 Ana Roman: NON-HVO Opp Prep task completed. Results:
+
+SDR field updated: Confirmed.
+Documents - Checked. 
+Product Family - BroadVision.
+Partner - Y. 
+Auto-renewal - N. 
+Netsuite - IDs validated. 
+ARR & TCV - validated.
+Parent Opp - Checked. 
+Co-term - Y. Can be C/T with the below MAIN opp: 
+ - https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003ifAGIAY/view
+Contacts and Addresses - Updated. 
+Create Quotes - PQ ready, Q-42910 1yr, STD success, 25% uplift.
+Contracts/Legal - Contract is on standard ESW terms.
+
+05/15/25 SYSTEM : Renewal opportunity imported from NetSuite. Subscription Name: "SHI INTERNATIONAL CORP (BVSN)(Lock 2 04-2025 Renew 1"">03/27/2026 James Stothard: Followed up with SHI reseller, it…</span></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-past_due" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">15 opportunities</span><span class="stat-pill">$270.3M ARR</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('past_due')">
+      <select class="tab-owner-filter" onchange="filterTabTable('past_due')">
+        <option value="">All Owners</option><option value="James Quigley">James Quigley</option><option value="James Stothard">James Stothard</option><option value="Jay Khalife">Jay Khalife</option><option value="Najeeha Humayun">Najeeha Humayun</option><option value="Tim Courtenay">Tim Courtenay</option><option value="Victor Wang">Victor Wang</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('past_due')">
+        <option value="">All Stages</option><option value="Quote Follow-Up">Quote Follow-Up</option><option value="Won't Process">Won't Process</option>
+      </select>
+      <span class="count-badge" id="count-past_due">15 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-past_due">
+      <thead><tr><th>Opportunity / Account</th><th>Owner</th><th>Current ARR</th><th>ARR</th><th>Close Date</th><th>Renewal Date</th></tr></thead>
+      <tbody><tr data-owner="Victor Wang" data-stage="Won't Process" data-search="m/i homes, inc. - pivotal - renewal - 3_2026victor wangm/i homes, inc.pivotal"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DxVVKAA3/view" target="_blank">M/I Homes, Inc. - Pivotal - Renewal - 3_2026</a><br><small style="color:#94a3b8">M/I Homes, Inc.</small></td><td>Victor Wang</td><td>$10K</td><td>$38K</td><td>Jun 25, 2023</td><td>Mar 30, 2026</td></tr>
+<tr data-owner="Najeeha Humayun" data-stage="Won't Process" data-search="the chronicle news - olive software - renewal - 4_2026najeeha humayunthe chronicle newsolive software"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Az73eAAB/view" target="_blank">The Chronicle News - Olive Software - Renewal…</a><br><small style="color:#94a3b8">The Chronicle News</small></td><td>Najeeha Humayun</td><td>$5K</td><td>$16K</td><td>Apr 25, 2024</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="hügli nahrungsmittel gmbh - acrm - renewal - 4_2026james stothardhügli nahrungsmittel gmbhacrm"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUgxoAAD/view" target="_blank">Hügli Nahrungsmittel GmbH - ACRM - Renewal - …</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td>James Stothard</td><td>$55K</td><td>—</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="hügli nahrungsmittel gmbh - acrm - renewal - 4_2026james stothardhügli nahrungsmittel gmbhacrm"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUh0JAAT/view" target="_blank">Hügli Nahrungsmittel GmbH - ACRM - Renewal - …</a><br><small style="color:#94a3b8">Hügli Nahrungsmittel GmbH</small></td><td>James Stothard</td><td>$2K</td><td>—</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="kingslake international limited (aikk)) - seiko epson corporation - aurea platform - renewal - 4_2026james stothardseiko epson corporationaurea platform"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000BUz5TAAT/view" target="_blank">Kingslake International Limited (AIKK)) - Sei…</a><br><small style="color:#94a3b8">Seiko Epson Corporation</small></td><td>James Stothard</td><td>$41K</td><td>—</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="bdnf inc, ltd. - lgu+ - peerapp - renewal - 4_2026james quigleylgu+peerapp"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Cdck8AAB/view" target="_blank">BDNF Inc, Ltd. - LGU+ - PeerApp - Renewal - 4…</a><br><small style="color:#94a3b8">LGU+</small></td><td>James Quigley</td><td>$40K</td><td>$50K</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="jewish federations of north america - lyris (aem) - renewal - 4_2026james stothardjewish federations of north americalyris (aem)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DSygeAAD/view" target="_blank">Jewish Federations of North America - Lyris (…</a><br><small style="color:#94a3b8">Jewish Federations of North America</small></td><td>James Stothard</td><td>—</td><td>—</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="kingslake international limited (aikk)) - toshiba plant systems & services corporation - artemis (aps) - renewal - 4_202james quigleytoshiba plant systems & services corporationartemis (aps)"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DT87JAAT/view" target="_blank">Kingslake International Limited (AIKK)) - Tos…</a><br><small style="color:#94a3b8">Toshiba Plant Systems & Services Co</small></td><td>James Quigley</td><td>$4.6M</td><td>$269.8M</td><td>Oct 27, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Quigley" data-stage="Won't Process" data-search="finstar – sociedade de investimentos e participações sa - peerapp - renewal - 4_2026james quigleyfinstar – sociedade de investimentos e participações sapeerapp"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000DTyfzAAD/view" target="_blank">Finstar – Sociedade de Investimentos e Partic…</a><br><small style="color:#94a3b8">Finstar – Sociedade de Investimento</small></td><td>James Quigley</td><td>$78K</td><td>$97K</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="taifon computer co ltd - taiwan mobile co.,ltd. (twm) - newnet - renewal - 4_2026james stothardtaiwan mobile co.,ltd. (twm)newnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000Ea2rHAAR/view" target="_blank">Taifon Computer Co Ltd - Taiwan Mobile Co.,Lt…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td>James Stothard</td><td>$32K</td><td>$40K</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="taifon computer co ltd - taiwan mobile co.,ltd. (twm) - newnet - renewal - 4_2026james stothardtaiwan mobile co.,ltd. (twm)newnet"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000EaPEaAAN/view" target="_blank">Taifon Computer Co Ltd - Taiwan Mobile Co.,Lt…</a><br><small style="color:#94a3b8">Taiwan Mobile Co.,Ltd. (TWM)</small></td><td>James Stothard</td><td>$32K</td><td>$40K</td><td>Nov 06, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="Tim Courtenay" data-stage="Quote Follow-Up" data-search="netcare hospitals (pty) ltd - dnn - renewal - 1668733 - 4_2026tim courtenaynetcare hospitals (pty) ltddnn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lgfJIAQ/view" target="_blank">Netcare Hospitals (PTY) LTD - DNN - Renewal -…</a><br><small style="color:#94a3b8">Netcare Hospitals (PTY) LTD</small></td><td>Tim Courtenay</td><td>$82K</td><td>$82K</td><td>Apr 10, 2026</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="Jay Khalife" data-stage="Won't Process" data-search="ipsos gmbh - tivian - renewal - 1658008 - 4_2026jay khalifeipsos gmbhtivian"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006Ih000003lggbIAA/view" target="_blank">Ipsos GmbH - Tivian - Renewal - 1658008 - 4_2…</a><br><small style="color:#94a3b8">Ipsos GmbH</small></td><td>Jay Khalife</td><td>$8K</td><td>$2</td><td>Nov 19, 2025</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="invalid_city of westminster - dnn - 1188112 - renewal - 4_2026james stothardcity of westminsterdnn"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/006fu00000Iyw8TAAR/view" target="_blank">INVALID_City of Westminster - DNN - 1188112 -…</a><br><small style="color:#94a3b8">City of Westminster</small></td><td>James Stothard</td><td>$15K</td><td>$22K</td><td>Jan 23, 2026</td><td>Apr 01, 2026</td></tr>
+<tr data-owner="James Stothard" data-stage="Won't Process" data-search="systra ict - kayako - 1535154 - renewal - 4_2026james stothardsystra ictkayako"><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/0062x00000ACcYNAA1/view" target="_blank">Systra ICT - Kayako - 1535154 - Renewal - 4_2…</a><br><small style="color:#94a3b8">Systra ICT</small></td><td>James Stothard</td><td>$4K</td><td>—</td><td>Nov 06, 2025</td><td>Apr 03, 2026</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-calls" class="tab-content" style="display:none">
+  <div class="tab-header">
+    <div class="tab-stats">
+      <span class="stat-pill">19 calls</span>
+    </div>
+    <div class="tab-filters">
+      <input type="text" class="tab-search" placeholder="Search…"
+             oninput="filterTabTable('calls')">
+      <select class="tab-owner-filter" onchange="filterTabTable('calls')">
+        <option value="">All Owners</option><option value="Fredrik Scheike">Fredrik Scheike</option><option value="James Quigley">James Quigley</option><option value="James Stothard">James Stothard</option><option value="Sebastian Desand">Sebastian Desand</option><option value="Tim Courtenay">Tim Courtenay</option>
+      </select>
+      <select class="tab-stage-filter" onchange="filterTabTable('calls')">
+        <option value="">All Results</option><option value="Call No Show">Call No Show</option><option value="Completed - Action needed">Completed - Action needed</option><option value="Completed - Lost">Completed - Lost</option>
+      </select>
+      <span class="count-badge" id="count-calls">19 rows</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="table-calls">
+      <thead><tr><th>Date</th><th>Owner</th><th>Subject</th><th>Call Result</th><th>Contact</th><th>Opportunity / Account</th></tr></thead>
+      <tbody><tr data-owner="Tim Courtenay" data-stage="Completed - Action needed" data-search="tim courtenaykirsty macklescottish & southern electricity networks - khoros - renewal - 1707763 - 7_2026check-in call"><td>Apr 02, 2026 <small style="color:#64748b">(4d ago)</small></td><td>Tim Courtenay</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Kirsty Mackle</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Scottish & Southern Electricity Networks - Kh</a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Action needed" data-search="sebastian desanderic sharrowh&r block - khoros - renewal - 1774065 - 8_2026_care & marketingcheck-in call"><td>Apr 01, 2026 <small style="color:#64748b">(5d ago)</small></td><td>Sebastian Desand</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Eric Sharrow</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">H&R Block - Khoros - Renewal - 1774065 - 8_20</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardlisa kerrvirginia rural water association (vrwa) - gomembers - renewal - 7_2026cancellation call"><td>Mar 31, 2026 <small style="color:#64748b">(6d ago)</small></td><td>James Stothard</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Lisa Kerr</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Virginia Rural Water Association (VRWA) - GoM</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stotharddesh deepakegon zehnder international ag - messageone - renewal - 8_2026check-in call"><td>Mar 31, 2026 <small style="color:#64748b">(6d ago)</small></td><td>James Stothard</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Desh Deepak</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Egon Zehnder International AG - Messageone - </a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Action needed" data-search="sebastian desandanusha govinducypress semiconductor corporation - khoros - renewal - 1705971 - 8_2026enterprise renewal call"><td>Mar 31, 2026 <small style="color:#64748b">(6d ago)</small></td><td>Sebastian Desand</td><td>Enterprise Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Anusha Govindu</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Cypress Semiconductor Corporation - Khoros - </a></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Completed - Action needed" data-search="fredrik scheikenorik bagdasariandocfinder gmbh - kayako - 1535838 - renewal - 7_2026renewal call"><td>Mar 30, 2026 <small style="color:#64748b">(7d ago)</small></td><td>Fredrik Scheike</td><td>Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Norik Bagdasarian</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">DocFinder GmbH - Kayako - 1535838 - Renewal -</a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Lost" data-search="sebastian desandai yeohrhb bank berhad - onyx - renewal - 1721287 - 7_2026cancellation call"><td>Mar 27, 2026 <small style="color:#64748b">(10d ago)</small></td><td>Sebastian Desand</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Lost</span></td><td>Ai Yeoh</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">RHB Bank Berhad - Onyx - Renewal - 1721287 - </a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardsuleman ahmadcanadian pacific railway - lyris (aem) - renewal - 7_2026renewal call"><td>Mar 26, 2026 <small style="color:#64748b">(11d ago)</small></td><td>James Stothard</td><td>Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Suleman Ahmad</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Canadian Pacific Railway - Lyris (AEM) - Rene</a></td></tr>
+<tr data-owner="James Quigley" data-stage="Completed - Action needed" data-search="james quigleyronald howellntt data americas, inc - messageone - renewal - 9_2026check-in call"><td>Mar 26, 2026 <small style="color:#64748b">(11d ago)</small></td><td>James Quigley</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Ronald Howell</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">NTT Data Americas, Inc - Messageone - Renewal</a></td></tr>
+<tr data-owner="James Quigley" data-stage="Completed - Action needed" data-search="james quigleymike longs&a homes - pivotal - renewal - 6_2026cancellation call"><td>Mar 26, 2026 <small style="color:#64748b">(11d ago)</small></td><td>James Quigley</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Mike Long</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">S&A Homes - Pivotal - Renewal - 6_2026</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardandy jentgescentral container corporation - tradebeam - renewal - 1673947 - 7_2026renewal call"><td>Mar 26, 2026 <small style="color:#64748b">(11d ago)</small></td><td>James Stothard</td><td>Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Andy Jentges</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Central Container Corporation - Tradebeam - R</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardkathryn algermills & reeve - influitive - renewal - 1667833 - 6_2026cancellation call"><td>Mar 26, 2026 <small style="color:#64748b">(11d ago)</small></td><td>James Stothard</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Kathryn Alger</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Mills & Reeve - Influitive - Renewal - 166783</a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Action needed" data-search="sebastian desandkeith partridgebendigo and adelaide bank - khoros - renewal - 1707443 - 4_2026enterprise renewal call"><td>Mar 25, 2026 <small style="color:#64748b">(12d ago)</small></td><td>Sebastian Desand</td><td>Enterprise Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Keith Partridge</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Bendigo and Adelaide Bank - Khoros - Renewal </a></td></tr>
+<tr data-owner="Fredrik Scheike" data-stage="Call No Show" data-search="fredrik scheikeshaun maymega privacy llc - kayako - renewal - 1751611 - 7_2026renewal call"><td>Mar 24, 2026 <small style="color:#64748b">(13d ago)</small></td><td>Fredrik Scheike</td><td>Renewal Call</td><td><span class="badge" style="background:#94a3b8">Call No Show</span></td><td>Shaun May</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Mega Privacy LLC - Kayako - Renewal - 1751611</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardsheel patelworkato inc - khoros - renewal - 1710179 - 7_2026renewal call"><td>Mar 24, 2026 <small style="color:#64748b">(13d ago)</small></td><td>James Stothard</td><td>Renewal Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Sheel Patel</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Workato Inc - Khoros - Renewal - 1710179 - 7_</a></td></tr>
+<tr data-owner="James Quigley" data-stage="Completed - Action needed" data-search="james quigleypaul harriganquest diagnostics - acorn - renewal - 8_2026check-in call"><td>Mar 24, 2026 <small style="color:#64748b">(13d ago)</small></td><td>James Quigley</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Paul Harrigan</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Quest Diagnostics - Acorn - Renewal - 8_2026</a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Lost" data-search="sebastian desandadam maikkulaharley davidson, inc - khoros - renewal - 1702606 - 5_2026cancellation call"><td>Mar 24, 2026 <small style="color:#64748b">(13d ago)</small></td><td>Sebastian Desand</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Lost</span></td><td>Adam Maikkula</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Harley Davidson, Inc - Khoros - Renewal - 170</a></td></tr>
+<tr data-owner="Sebastian Desand" data-stage="Completed - Lost" data-search="sebastian desandmarlaine maldonadosanrio, inc. - khoros - renewal - 1731445 - 5_2026_marketingcancellation call"><td>Mar 24, 2026 <small style="color:#64748b">(13d ago)</small></td><td>Sebastian Desand</td><td>Cancellation Call</td><td><span class="badge" style="background:#94a3b8">Completed - Lost</span></td><td>Marlaine Maldonado</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">Sanrio, Inc. - Khoros - Renewal - 1731445 - 5</a></td></tr>
+<tr data-owner="James Stothard" data-stage="Completed - Action needed" data-search="james stothardshanny malikstepchange debt charity - dnn - renewal - 1734048 - 8_2026check-in call"><td>Mar 23, 2026 <small style="color:#64748b">(14d ago)</small></td><td>James Stothard</td><td>Check-in Call</td><td><span class="badge" style="background:#94a3b8">Completed - Action needed</span></td><td>Shanny Malik</td><td><a href="https://trilogy-sales.lightning.force.com/lightning/r/Report/00OIh000000mHHJMA2/" target="_blank">StepChange Debt Charity - DNN - Renewal - 173</a></td></tr></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<script>
+const TAB_LABELS = {"gate1": "Gate 1 Non-HVO: 140D No Engagement", "gate2": "Gate 2 Non-HVO: 90D Quote Not Sent", "gate3": "Gate 3: 30D Not Finalizing", "gate4": "Gate 4: 0D Not Closed", "not_touched": "Not Touched This Week", "past_due": "Past Due", "calls": "Calls"};
+
+function openTab(tabId) {
+  document.getElementById('dashboard-body').style.display = 'none';
+  document.getElementById('table-view').style.display = 'block';
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  const content = document.getElementById('tab-' + tabId);
+  if (content) content.style.display = 'block';
+  document.getElementById('table-nav-title').textContent = TAB_LABELS[tabId] || tabId;
+  document.querySelector('.kpi-bar').scrollIntoView();
+}
+
+function showDashboard() {
+  document.getElementById('table-view').style.display = 'none';
+  document.getElementById('dashboard-body').style.display = 'block';
+  document.querySelector('.kpi-bar').scrollIntoView();
+}
+
+function filterTabTable(tabId) {
+  const section = document.getElementById('tab-' + tabId);
+  if (!section) return;
+  const q     = section.querySelector('.tab-search').value.toLowerCase();
+  const owner = section.querySelector('.tab-owner-filter').value;
+  const stage = section.querySelector('.tab-stage-filter').value;
+  const rows  = section.querySelectorAll('tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    if (!row.dataset.search) return;
+    const match =
+      (!q     || row.dataset.search.includes(q)) &&
+      (!owner || row.dataset.owner === owner) &&
+      (!stage || row.dataset.stage === stage);
+    row.classList.toggle('hidden', !match);
+    if (match) visible++;
+  });
+  const badge = document.getElementById('count-' + tabId);
+  if (badge) badge.textContent = visible + ' rows';
+}
+
+async function refreshDashboard() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '↻ Updating…';
+  try {
+    const res  = await fetch('/admin/refresh', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '✓ Updating — live in ~2 min';
+      btn.style.color = '#22c55e';
+      setTimeout(() => { btn.textContent = '↻ Update'; btn.style.color = ''; btn.disabled = false; }, 8000);
+    } else {
+      btn.textContent = '✗ ' + (data.error || 'Error');
+      btn.style.color = '#ef4444';
+      setTimeout(() => { btn.textContent = '↻ Update'; btn.style.color = ''; btn.disabled = false; }, 4000);
+    }
+  } catch (e) {
+    btn.textContent = '✗ Request failed';
+    btn.style.color = '#ef4444';
+    setTimeout(() => { btn.textContent = '↻ Update'; btn.style.color = ''; btn.disabled = false; }, 4000);
+  }
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  document.getElementById('theme-btn').textContent = isDark ? '☀ Light' : '☾ Dark';
+  localStorage.setItem('trilogy-theme', isDark ? 'dark' : 'light');
+}
+(function() {
+  if (localStorage.getItem('trilogy-theme') === 'dark') {
+    document.body.classList.add('dark');
+    document.getElementById('theme-btn').textContent = '☀ Light';
+  }
+})();
+</script>
+</body>
+</html>
