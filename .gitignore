@@ -1,0 +1,11 @@
+node_modules
+
+# Next.js build output
+.next
+out
+
+# Claude Code local settings
+.claude/
+
+# Temporary wrapper — delete after merge step 5 completes
+renewals-portal-stage1-main/
