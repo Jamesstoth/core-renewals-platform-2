@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.88.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/jsforce": "^1.11.6",
+    "jsforce": "^3.10.14",
     "next": "^15.3.0",
     "openai": "^6.34.0",
     "react": "^19.0.0",
