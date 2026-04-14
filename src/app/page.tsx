@@ -1,13 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
+  // Auth bypass — go straight to the dashboard.
+  // To re-enable auth, restore the Supabase user check that was here before.
   redirect('/pipeline')
 }
