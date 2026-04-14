@@ -127,10 +127,10 @@ def aggregate(records):
     total_arr   = sum(r["arr"] for r in records)
     win_arr     = sum(r["arr"] for r in records if r["outcome"] == "Likely to Win")
     churn_arr   = sum(r["arr"] for r in records if r["outcome"] == "Likely to Churn")
-    risk_arr    = sum(r["arr"] for r in records if r["status"] in ("Warning", "Attention Required"))
+    risk_arr    = sum(r["arr"] for r in records if not r["outcome"] or r["outcome"] == "Undetermined")
     win_count   = sum(1 for r in records if r["outcome"] == "Likely to Win")
     churn_count = sum(1 for r in records if r["outcome"] == "Likely to Churn")
-    risk_count  = sum(1 for r in records if r["status"] in ("Warning", "Attention Required"))
+    risk_count  = sum(1 for r in records if not r["outcome"] or r["outcome"] == "Undetermined")
 
     top_products = sorted(product.items(), key=lambda x: -x[1]["arr"])[:12]
     top_owners   = [
@@ -275,7 +275,7 @@ footer{{text-align:center;color:var(--muted);font-size:11px;padding:10px 0 20px}
   <div class="kpi blue"  id="kpi-all"   onclick="kpiClick('all')">   <div class="kpi-label">Total Pipeline ARR</div><div class="kpi-value" id="k-arr"></div>      <div class="kpi-sub" id="k-count"></div></div>
   <div class="kpi green" id="kpi-win"   onclick="kpiClick('win')">   <div class="kpi-label">Likely to Win</div>     <div class="kpi-value" id="k-win-arr"></div>  <div class="kpi-sub" id="k-win-count"></div></div>
   <div class="kpi red"   id="kpi-churn" onclick="kpiClick('churn')"> <div class="kpi-label">Likely to Churn</div>   <div class="kpi-value" id="k-churn-arr"></div><div class="kpi-sub" id="k-churn-count"></div></div>
-  <div class="kpi warn"  id="kpi-risk"  onclick="kpiClick('risk')">  <div class="kpi-label">At Risk (Warn+Attn)</div><div class="kpi-value" id="k-risk-arr"></div><div class="kpi-sub" id="k-risk-count"></div></div>
+  <div class="kpi warn"  id="kpi-risk"  onclick="kpiClick('risk')">  <div class="kpi-label">Undetermined</div><div class="kpi-value" id="k-risk-arr"></div><div class="kpi-sub" id="k-risk-count"></div></div>
 </div>
 <div class="chart-grid">
   <div class="chart-box"><h3 onclick="toggleChart(this)">Probable Outcome — ARR Split<i class="expand-icon">▼</i></h3><canvas id="ch-outcome"></canvas></div>
@@ -310,7 +310,7 @@ function applyFilters(){{
         su=document.getElementById('f-status').value;
   filtered=RAW.filter(r=>
     (!st||r.stage===st)&&(!ow||r.owner===ow)&&(!pr||r.product===pr)&&(!ou||r.outcome===ou)&&
-    (!su||r.status===su)&&(!atRiskFilter||['Warning','Attention Required'].includes(r.status))
+    (!su||r.status===su)&&(!atRiskFilter||!r.outcome||r.outcome==='Undetermined')
   );
   renderKPIs();updateCharts();renderTable();
 }}
@@ -347,7 +347,7 @@ function kpiClick(kpi){{
   ['kpi-all','kpi-win','kpi-churn','kpi-risk'].forEach(id=>document.getElementById(id).classList.remove('active'));
   atRiskFilter=false;activeKpi=kpi;
   document.getElementById('kpi-'+kpi).classList.add('active');
-  const labels={{'all':'All Opportunities','win':'Likely to Win','churn':'Likely to Churn','risk':'At Risk (Warning + Attention Required)'}};
+  const labels={{'all':'All Opportunities','win':'Likely to Win','churn':'Likely to Churn','risk':'Undetermined'}};
   if(kpi==='win')document.getElementById('f-outcome').value='Likely to Win';
   else if(kpi==='churn')document.getElementById('f-outcome').value='Likely to Churn';
   else if(kpi==='risk')atRiskFilter=true;
@@ -371,8 +371,8 @@ function renderKPIs(){{
   document.getElementById('k-win-count').textContent=ct(r=>r.outcome==='Likely to Win').toLocaleString()+' deals';
   document.getElementById('k-churn-arr').textContent=fmtARR(s(r=>r.outcome==='Likely to Churn'?r.arr:0));
   document.getElementById('k-churn-count').textContent=ct(r=>r.outcome==='Likely to Churn').toLocaleString()+' deals';
-  document.getElementById('k-risk-arr').textContent=fmtARR(s(r=>['Warning','Attention Required'].includes(r.status)?r.arr:0));
-  document.getElementById('k-risk-count').textContent=ct(r=>['Warning','Attention Required'].includes(r.status)).toLocaleString()+' deals';
+  document.getElementById('k-risk-arr').textContent=fmtARR(s(r=>!r.outcome||r.outcome==='Undetermined'?r.arr:0));
+  document.getElementById('k-risk-count').textContent=ct(r=>!r.outcome||r.outcome==='Undetermined').toLocaleString()+' deals';
 }}
 Chart.register({{
   id:'valueLabels',

@@ -168,7 +168,7 @@ export default function PipelineDashboard({ opportunities }: Props) {
       totalArr += arr
       if (o.probable_outcome === 'Likely to Win')   { winArr   += arr; winCount++ }
       if (o.probable_outcome === 'Likely to Churn') { churnArr += arr; churnCount++ }
-      if (o.opp_status === 'Warning' || o.opp_status === 'Attention Required') { riskArr += arr; riskCount++ }
+      if (!o.probable_outcome || o.probable_outcome === 'Undetermined') { riskArr += arr; riskCount++ }
     }
     return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: filtered.length }
   }, [filtered])
@@ -272,7 +272,7 @@ export default function PipelineDashboard({ opportunities }: Props) {
           <div className="pl-kpi-sub">{kpis.churnCount.toLocaleString()} deals</div>
         </div>
         <div className="pl-kpi pl-kpi-warn">
-          <div className="pl-kpi-label">At Risk (Warn + Attn)</div>
+          <div className="pl-kpi-label">Undetermined</div>
           <div className="pl-kpi-value">{fmtARR(kpis.riskArr)}</div>
           <div className="pl-kpi-sub">{kpis.riskCount.toLocaleString()} deals</div>
         </div>
