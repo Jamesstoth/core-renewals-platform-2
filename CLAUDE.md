@@ -1,82 +1,108 @@
-# Trilogy Renewals Dashboard
+# Core Renewals Platform
 
-Next.js dashboard for Trilogy renewal opportunities. Data lives in Supabase; page is always fresh (SSR, no cache).
+## Vision
 
-**Live URL:** https://isr-secr.vercel.app (Vercel)  
-**Repo:** jamesqtrilogy/isr-dash
+An AI-powered platform that automates everything in the core renewals process except renewal calls — which require human judgement, relationship building, and consultative selling.
+
+The platform serves the ISR (Inside Sales Rep) team executing Trilogy/ESW's renewal motion. The renewals business model is: acquire software companies, enforce standardised 25/35/45% price increases, retain customers through value (not discounting), and run at 75% EBITDA. Every renewal is either handled by AI/self-serve (transactional, <$100K) or by human ERMs with AI backend support (enterprise, >$100K).
+
+The platform should automate:
+- **Renewal preparation**: opp prep, contact validation, contract summary, quote config — everything the SDR does in the first 30 days of the 210-day cadence
+- **Call objectives**: AI-generated briefings before every call, informed by deal history, support tickets, account health, churn risk signals, and the MEDDPICCS framework
+- **Follow-up emails**: contextual drafts for every scenario — post-call follow-ups, quote chasers, AR warnings, objection responses, extension requests, escalations
+- **Churn prediction**: based on engagement patterns, support ticket sentiment, product stickiness, usage trends, pricing signal analysis, and the ~20 standardised churn risk categories
+- **Pipeline health monitoring**: Gate framework violations surfaced automatically (Gate 1: 140D no engagement, Gate 2: 90D quote not sent, Gate 3: 30D not finalising, Gate 4: 0D not closed)
+- **Support ticket cross-referencing**: Kayako ticket history alongside renewal data so reps know about product issues before calls
+- **Salesforce write-back**: auto-updating Description and NextStep fields based on email/call activity
+- **Follow-up scheduling**: automated reminders aligned to the renewal cadence
+- **Objection handling intelligence**: surfacing approved strategies (free seats, payment terms, Prime/Unlimited, multi-year lock) based on the customer's specific objection pattern
+
+The rep's role becomes the high-value human interactions: renewal calls, relationship building, complex negotiations, cancellation insight calls. The platform handles everything around those calls.
+
+## Business Rules (Critical — AI features must respect these)
+
+- **25/35/45 pricing is non-negotiable.** 25% standard, 35% gold, 45% platinum. Zero rep discretion. Zero exceptions.
+- **Never negotiate on price.** But let customers "win" with non-price concessions: free seats, modules, payment terms, Prime/Unlimited access, multi-year price lock.
+- **Standard terms only:** 1, 3, or 5 years. Nothing shorter or longer.
+- **No seat/license reductions.** Requesting reduction triggers repricing to full list.
+- **No contract redlining under $100K TCV.** Accept losing sub-$100K customers who refuse standard paper.
+- **Auto-renewal enforces engagement.** AR quote = list price + 50% penalty. Offer quote = discounted. Customer engagement is rewarded.
+- **Approved pricing strategies only:** Standard 25/35/45, Flat 4 (maintenance, credible churn, 4yr), 1st Year Flat/Ramp, Free/Unlimited Seats (3-5yr HVO), Multiyear Platinum Reduced (35%, >$1M ARR, 3-5yr).
+- **Value-based communication reduces churn by 40%** vs cost-based justifications. All AI-generated content must lead with value/ROI, never apologise for pricing.
+
+## Current State
+
+The platform merges two previously separate tools:
+
+**Dashboard** (James Quigley): Pipeline view with Gate framework violations (Gate 1-4), ARR at risk, team-wide filtering, charts. Reads from Supabase, populated by GitHub Actions syncing from Salesforce. Lives at /pipeline.
+
+**Opportunity Detail Pages** (James Stothard): AI-powered detail view when clicking into a deal — AI deal summary, call objectives, 7 email draft types, activity history, AI chat. Lives at /opportunity/[id].
+
+**Live:** https://core-renewals-platform.vercel.app
+**Repo:** https://github.com/Jamesstoth/core-renewals-platform
+
+## Tech Stack
+
+- Next.js 15 (App Router) + React 19 + TypeScript
+- Supabase (project: zligncbwriqjiplrgsvv) — read layer for dashboard
+- Direct Salesforce API via jsforce — live data for opportunity detail pages
+- Anthropic API (Claude) — AI features
+- OpenAI API — AI generation
+- Tailwind CSS
+- Vercel — hosting
+- GitHub Actions — scheduled SF -> Supabase sync
+
+## Key Directories
+
+- src/app/pipeline/ — dashboard page (SSR, reads Supabase)
+- src/app/opportunity/[id]/ — opportunity detail page with AI features
+- src/app/api/generate/ — AI draft generation endpoint
+- src/app/api/opportunities/ — opportunities API (reads Supabase)
+- src/app/api/opportunity-activities/ — activity history from Salesforce
+- src/app/api/sf-test/ — Salesforce API connection test
+- src/components/Dashboard.tsx — main dashboard with Gate tables and charts
+- src/lib/salesforce-api.ts — direct Salesforce API (jsforce, OAuth2)
+- src/lib/rules-engine.ts — queue status and flag logic
+- lib/ (root) — Python scripts for GitHub Actions sync pipeline
+- supabase/schema.sql — database schema
 
 ## Architecture
 
-```
-GitHub Actions (refresh.yml)
-  → query_sf_mcp.py  ×6 tabs  (SF MCP server, JWT auth)
-  → write_to_supabase.py       (upserts to Supabase via REST)
+- Auth bypassed for now (middleware.ts is no-op)
+- Dashboard reads Supabase for speed (291 opps in <1s)
+- Opportunity detail pages fetch live from Salesforce
+- MCP replaced with direct jsforce API calls
+- AI uses Anthropic and OpenAI APIs directly
+- GitHub Actions populates Supabase via Python + MCP
 
-Vercel (Next.js App Router, SSR)
-  → page.tsx reads Supabase on every page load
-  → /api/refresh  triggers GH Actions workflow_dispatch
-  → middleware.ts enforces @trilogy.com Google OAuth
-```
+## Environment Variables
 
-## Running Locally
+Vercel/.env.local:
+- NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY — Supabase
+- SF_CLIENT_ID, SF_CLIENT_SECRET, SF_USERNAME, SF_PASSWORD, SF_SECURITY_TOKEN — Salesforce direct API
+- ANTHROPIC_API_KEY — AI features
+- OPENAI_API_KEY — AI generation
+- SALESFORCE_MCP_TOKEN — legacy activity fetching (being replaced)
 
-```bash
-npm install
-cp .env.local.example .env.local   # fill in Supabase + GitHub values
-npm run dev
-```
+GitHub Actions:
+- SF_MCP_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY — scheduled sync
 
-To re-query SF locally and write to Supabase:
-```bash
-SF_MCP_TOKEN=... python3 lib/query_sf_mcp.py data/sf_gate1.json --soql-key gate1_soql --allow-empty
-# ... repeat for gate2–4, not_touched, past_due, activities
-SUPABASE_URL=... SUPABASE_SERVICE_KEY=... python3 lib/write_to_supabase.py
-```
+## Team
 
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `lib/query_sf_mcp.py` | SF query via direct MCP curl (6 per-tab queries) |
-| `lib/write_to_supabase.py` | Merges gate files, upserts to Supabase |
-| `supabase/schema.sql` | DB schema — run once in Supabase SQL editor |
-| `config.json` | SOQL templates (gate1_soql … activities_soql) |
-| `.github/workflows/refresh.yml` | Scheduled + on-demand refresh pipeline |
-| `src/app/page.tsx` | SSR page — reads Supabase, renders Dashboard |
-| `src/components/Dashboard.tsx` | Client component with all interactivity |
-| `src/app/api/refresh/route.ts` | POST → triggers GH Actions workflow_dispatch |
-| `middleware.ts` | Auth guard — @trilogy.com only |
-
-## Supabase Setup (one-time)
-
-1. Create project at supabase.com
-2. Run `supabase/schema.sql` in the SQL editor
-3. Enable Google OAuth: Authentication → Providers → Google
-4. Add `https://trilogy-renewals-dashboard.vercel.app/auth/callback` as redirect URL
-5. Copy URL + anon key for Vercel env vars; copy service_role key for GitHub secret
-
-## Salesforce Data
-
-Per-tab SOQL keys in `config.json`: `gate1_soql`, `gate2_soql`, `gate3_soql`, `gate4_soql`, `not_touched_soql`, `past_due_soql`, `activities_soql`.
-
-Key fields: `Id`, `Name`, `Owner.Name`, `Owner.Email`, `Account.Name`, `StageName`, `ARR__c`, `Current_ARR__c`, `Renewal_Date__c`, `LastActivityDate`, `Next_Follow_Up_Date__c`, `AI_Churn_Risk_Category__c`, `Priority_Score__c`, `High_Value_Opp__c`, `Handled_by_BU__c`, `Gate_3_Violation_Date__c`
-
-## Team (as of 2026-04-02)
-
-ISR: James Quigley, James Stothard, Fredrik Scheike  
-SDR/SalesOps: Venus Laney, Alvy Gordo, Najeeha Humayun, Ana Roman  
-ERMs: Tim Courtenay, Sebastian Destand  
-VPs: David Morris, Tim Courtenay  
+ISR: James Quigley, James Stothard, Fredrik Scheike
+SDR/SalesOps: Venus Laney, Alvy Gordo, Najeeha Humayun, Ana Roman
+ERMs: Tim Courtenay, Sebastian Destand
+VPs: David Morris, Tim Courtenay
 SVP: Dmitry Bakaev
 
-## Required Secrets
+## Roadmap
 
-| Secret | Where | Purpose |
-|--------|-------|---------|
-| `SF_MCP_TOKEN` | GitHub | JWT for SF MCP server |
-| `SUPABASE_URL` | GitHub | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | GitHub | service_role key (bypasses RLS) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Vercel | Supabase URL (public) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel | Supabase anon key (public) |
-| `GITHUB_TOKEN` | Vercel | Trigger refresh workflow |
-| `GITHUB_REPO` | Vercel | `jamesqtrilogy/trilogy-renewals-dashboard` |
+1. Direct Salesforce API replacing all MCP-based fetching
+2. Kayako support ticket integration on opportunity pages
+3. Dashboard rendering from Supabase (schema reconciliation)
+4. Write-back to Salesforce (Description, NextStep)
+5. Re-enable Google OAuth
+6. Automated follow-up scheduling
+7. Churn prediction model using the ~20 standardised risk categories
+8. AI-generated renewal prep packages
+9. Integration with auto-renewal enforcement workflow
