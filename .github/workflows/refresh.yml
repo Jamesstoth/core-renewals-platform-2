@@ -1,0 +1,104 @@
+# Trilogy Renewals Dashboard — Salesforce Data Refresh
+# Triggers: scheduled (Mon-Fri 7AM UTC), manual, or API dispatch
+#
+# Required secrets:
+#   SF_USERNAME         - Salesforce username (email)
+#   SF_PASSWORD         - Salesforce password
+#   SF_SECURITY_TOKEN   - Salesforce security token
+#   SUPABASE_URL        - Supabase project URL
+#   SUPABASE_SERVICE_KEY - Supabase service_role key
+#
+# Optional secrets:
+#   SF_LOGIN_URL        - Login URL (default: https://login.salesforce.com)
+#                         Use https://test.salesforce.com for sandboxes
+
+name: Refresh Salesforce Data
+
+on:
+  schedule:
+    # Mon-Fri at 7:00 AM UTC (3:00 AM ET)
+    - cron: "0 7 * * 1-5"
+
+  workflow_dispatch:
+    inputs:
+      skip_activities:
+        description: "Skip activities query"
+        required: false
+        default: "false"
+        type: boolean
+
+env:
+  SF_USERNAME: ${{ secrets.SF_USERNAME }}
+  SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
+  SF_SECURITY_TOKEN: ${{ secrets.SF_SECURITY_TOKEN }}
+  SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Query Salesforce — Gate 1
+        run: |
+          echo "Querying Gate 1 opportunities..."
+          python3 lib/query_sf_direct.py data/sf_gate1.json --soql-key gate1_soql
+
+      - name: Query Salesforce — Gate 2
+        run: |
+          echo "Querying Gate 2 opportunities..."
+          python3 lib/query_sf_direct.py data/sf_gate2.json --soql-key gate2_soql
+
+      - name: Query Salesforce — Gate 3
+        run: |
+          echo "Querying Gate 3 opportunities..."
+          python3 lib/query_sf_direct.py data/sf_gate3.json --soql-key gate3_soql
+
+      - name: Query Salesforce — Gate 4
+        run: |
+          echo "Querying Gate 4 opportunities..."
+          python3 lib/query_sf_direct.py data/sf_gate4.json --soql-key gate4_soql
+
+      - name: Query Salesforce — Not Touched
+        run: |
+          echo "Querying Not Touched opportunities..."
+          python3 lib/query_sf_direct.py data/sf_not_touched.json --soql-key not_touched_soql
+
+      - name: Query Salesforce — Past Due
+        run: |
+          echo "Querying Past Due opportunities..."
+          python3 lib/query_sf_direct.py data/sf_past_due.json --soql-key past_due_soql
+
+      - name: Query Salesforce — Activities
+        if: ${{ github.event.inputs.skip_activities != 'true' }}
+        run: |
+          echo "Querying Activities..."
+          python3 lib/query_sf_direct.py data/sf_activities_latest.json --soql-key activities_soql --allow-empty
+
+      - name: Write to Supabase
+        run: |
+          echo "Upserting data to Supabase..."
+          python3 lib/write_to_supabase.py
+
+      - name: Summary
+        run: |
+          echo "## Refresh Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Records |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|---------|" >> $GITHUB_STEP_SUMMARY
+          for f in data/sf_*.json; do
+            if [[ -f "$f" ]]; then
+              count=$(python3 -c "import json; print(len(json.load(open('$f'))))" 2>/dev/null || echo "0")
+              echo "| $(basename $f) | $count |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
