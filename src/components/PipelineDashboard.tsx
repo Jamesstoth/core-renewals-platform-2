@@ -44,39 +44,35 @@ export default function PipelineDashboard({ opportunities, liveKpis }: Props) {
   const products = useMemo(() => [...new Set(opportunities.map(o => o.product).filter(Boolean) as string[])].sort(), [opportunities])
   const outcomes = useMemo(() => [...new Set(opportunities.map(o => o.probable_outcome || 'Undetermined'))].sort(), [opportunities])
 
-  // Pre-outcome filter — KPI cards read from this so each card always
-  // shows its own outcome total, independent of which card is currently
-  // selected. Stage/owner/product filters still apply to both.
-  const kpiBase = useMemo(() => {
+  const hasAnyFilter = Boolean(stageFilter || ownerFilter || productFilter || outcomeFilter)
+
+  const filtered = useMemo(() => {
     return opportunities.filter(o => {
       if (stageFilter   && o.stage      !== stageFilter)   return false
       if (ownerFilter   && o.owner_name !== ownerFilter)   return false
       if (productFilter && o.product    !== productFilter) return false
+      if (outcomeFilter && (o.probable_outcome || 'Undetermined') !== outcomeFilter) return false
       return true
     })
-  }, [opportunities, stageFilter, ownerFilter, productFilter])
+  }, [opportunities, stageFilter, ownerFilter, productFilter, outcomeFilter])
 
-  const filtered = useMemo(() => {
-    if (!outcomeFilter) return kpiBase
-    return kpiBase.filter(o => (o.probable_outcome || 'Undetermined') === outcomeFilter)
-  }, [kpiBase, outcomeFilter])
-
-  // KPIs — prefer live SF aggregates (all active, valid renewals, excluding
-  // Handled_by_BU and 'Sales Integration' owner) over Supabase-derived totals
-  // which are limited to the gate-bucketed subset.
+  // KPIs — when no filters are active, prefer live SF aggregates (all active,
+  // valid renewals, excluding Handled_by_BU and 'Sales Integration' owner).
+  // As soon as any filter is applied, recompute from the filtered dataset so
+  // the cards reflect what's in the table.
   const kpis = useMemo(() => {
-    if (liveKpis) return liveKpis
+    if (liveKpis && !hasAnyFilter) return liveKpis
     let totalArr = 0, winArr = 0, churnArr = 0, riskArr = 0
     let winCount = 0, churnCount = 0, riskCount = 0
-    for (const o of kpiBase) {
+    for (const o of filtered) {
       const arr = o.arr ?? 0
       totalArr += arr
       if (o.probable_outcome === 'Likely to Win')   { winArr   += arr; winCount++ }
       if (o.probable_outcome === 'Likely to Churn') { churnArr += arr; churnCount++ }
       if (!o.probable_outcome || o.probable_outcome === 'Undetermined') { riskArr += arr; riskCount++ }
     }
-    return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: kpiBase.length }
-  }, [liveKpis, kpiBase])
+    return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: filtered.length }
+  }, [liveKpis, hasAnyFilter, filtered])
 
   // Table
   const sorted = useMemo(() => {
@@ -91,8 +87,6 @@ export default function PipelineDashboard({ opportunities, liveKpis }: Props) {
     if (sortCol === col) setSortDir(d => (d === -1 ? 1 : -1))
     else { setSortCol(col); setSortDir(-1) }
   }
-
-  const anyFilter = stageFilter || ownerFilter || productFilter || outcomeFilter
 
   return (
     <div style={{ padding: '14px 20px' }}>
@@ -115,7 +109,7 @@ export default function PipelineDashboard({ opportunities, liveKpis }: Props) {
           <option value="">All Outcomes</option>
           {outcomes.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
-        {anyFilter && (
+        {hasAnyFilter && (
           <button className="back-btn" onClick={() => { setStageFilter(''); setOwnerFilter(''); setProductFilter(''); setOutcomeFilter('') }}>
             ✕ Reset
           </button>
