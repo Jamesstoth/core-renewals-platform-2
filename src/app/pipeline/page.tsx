@@ -7,17 +7,19 @@ export const dynamic = 'force-dynamic'
 export default async function PipelinePage() {
   const supabase = await createClient()
 
-  // Only fetch opportunities that are currently in one of the 6 gate buckets.
-  // Without this filter PostgREST's default 1000-row cap pulls in hundreds of
-  // stale historical "Sales Integration" records and crowds out the live ISR
-  // set — the dashboard ends up looking empty.
+  // "Active, valid renewals" per the Trilogy playbook (see lib/build_dashboard.py):
+  //   Type = 'Renewal' AND IsClosed = false AND Type != 'OEM'
+  // The gate-flag columns (in_gate1..4, in_not_touched, in_past_due) remain on
+  // each row so the Gates tab can still bucket these opps downstream.
+  // PostgREST caps at 1000 rows by default — bump explicitly so the full
+  // active renewal book comes through.
   const [oppRes, refreshRes] = await Promise.all([
     supabase
       .from('opportunities')
       .select('*')
-      .or(
-        'in_gate1.eq.true,in_gate2.eq.true,in_gate3.eq.true,in_gate4.eq.true,in_not_touched.eq.true,in_past_due.eq.true',
-      ),
+      .eq('opp_type', 'Renewal')
+      .eq('is_closed', false)
+      .range(0, 4999),
     supabase.from('last_refresh').select('*').eq('id', 1).single(),
   ])
 
