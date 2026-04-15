@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback } from 'react'
 import type { Opportunity, Activity, LastRefresh, TabId } from '@/lib/types'
 import PipelineDashboard from './PipelineDashboard'
 import WorkflowQueue from './WorkflowQueue'
-import { PipelineReportView, OppHealthView, WorkflowSignalsView } from './SignalViews'
+import { WorkflowSignalsView } from './SignalViews'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -289,7 +289,7 @@ interface Props {
 
 export default function Dashboard({ opportunities, activities, lastRefresh }: Props) {
   const [activeTab, setActiveTab] = useState<TabId | null>(null)
-  const [view, setView] = useState<'pipeline' | 'gates' | 'signals' | 'report' | 'health' | 'workflow'>('pipeline')
+  const [view, setView] = useState<'pipeline' | 'gates' | 'signals' | 'workflow'>('pipeline')
   const [dark, setDark] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
@@ -364,18 +364,6 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
         </div>
         <div className="view-toggle" aria-label="Reports">
           <button
-            className={`view-toggle-btn${view === 'report' ? ' active' : ''}`}
-            onClick={() => { setView('report'); setActiveTab(null) }}
-          >
-            Pipeline Report
-          </button>
-          <button
-            className={`view-toggle-btn${view === 'health' ? ' active' : ''}`}
-            onClick={() => { setView('health'); setActiveTab(null) }}
-          >
-            Opp Health
-          </button>
-          <button
             className={`view-toggle-btn${view === 'workflow' ? ' active' : ''}`}
             onClick={() => { setView('workflow'); setActiveTab(null) }}
           >
@@ -401,16 +389,6 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
       {/* ── Signals view ── */}
       {view === 'signals' && (
         <WorkflowQueue />
-      )}
-
-      {/* ── Pipeline Report view ── */}
-      {view === 'report' && (
-        <PipelineReportView opportunities={opportunities} />
-      )}
-
-      {/* ── Opp Health view ── */}
-      {view === 'health' && (
-        <OppHealthView opportunities={opportunities} />
       )}
 
       {/* ── Workflow Signals view ── */}
