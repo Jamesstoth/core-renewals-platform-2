@@ -12,6 +12,11 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://zligncbwriqjiplrgsvv.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaWduY2J3cmlxamlwbHJnc3Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0OTI4ODQsImV4cCI6MjA5MTA2ODg4NH0.8xjwd3ckuXszL1PUnw-Z88fYWwdZZRlBAfXlLQ94wfc",
+    "SUPABASE_URL": "https://zligncbwriqjiplrgsvv.supabase.co"
+  },
   "observability": {
     "enabled": true
   }
