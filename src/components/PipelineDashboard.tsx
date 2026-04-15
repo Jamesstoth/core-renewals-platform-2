@@ -16,7 +16,11 @@ function fmtARR(v: number) {
 
 function formatDate(d: string | null) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  })
 }
 
 // ── Main component ────────────────────────────────────────────────────────────

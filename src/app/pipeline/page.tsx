@@ -19,6 +19,7 @@ export default async function PipelinePage() {
       .select('*')
       .eq('opp_type', 'Renewal')
       .eq('is_closed', false)
+      .gt('renewal_date', '2026-01-01')
       .range(0, 4999),
     supabase.from('last_refresh').select('*').eq('id', 1).single(),
     fetchPipelineKpis().catch((e: unknown) => {

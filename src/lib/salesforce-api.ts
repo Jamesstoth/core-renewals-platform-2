@@ -140,6 +140,7 @@ export async function fetchPipelineKpis(): Promise<PipelineKpis> {
      WHERE Type = 'Renewal' AND IsClosed = false
        AND Handled_by_BU__c = false
        AND Owner.Name IN (${ownerList})
+       AND Renewal_Date__c > 2026-01-01
      GROUP BY Probable_Outcome__c`
   )
 
