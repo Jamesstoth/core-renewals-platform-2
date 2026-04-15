@@ -106,7 +106,7 @@ def norm_opp(rec, gate_flags):
         'opp_type':              rec.get('Type'),
         'next_step':             rec.get('NextStep'),
         'description':           rec.get('Description'),
-        'account_report':        rec.get('Account_Report__c'),
+        'account_report':        acct.get('Account_Report__c'),
         'opportunity_report':    rec.get('Opportunity_Report__c'),
         'support_tickets_summary': rec.get('Support_Tickets_Summary__c'),
         'gate3_violation_date':  _date(rec.get('Gate_3_Violation_Date__c')),

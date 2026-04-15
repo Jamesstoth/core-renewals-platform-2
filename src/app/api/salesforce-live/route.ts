@@ -33,7 +33,7 @@ const OPP_SOQL = `
     LastActivityDate, Next_Follow_Up_Date__c, NextStep,
     IsClosed, IsWon, HasOpenActivity, HasOverdueTask,
     Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c,
-    Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
+    Account.Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
   FROM Opportunity
   WHERE IsClosed = false AND Type IN ('Renewal', 'Upsell')
   ORDER BY CloseDate ASC
@@ -282,7 +282,7 @@ export async function GET() {
         };
       });
 
-      const account = opp.Account as { Name?: string } | null;
+      const account = opp.Account as { Name?: string; Account_Report__c?: string } | null;
       const owner = opp.Owner as { Name?: string } | null;
       const health = scoreSfOpportunity(opp as unknown as SfOpportunityRecord);
 
@@ -309,7 +309,7 @@ export async function GET() {
           hasOpenActivity: (opp.HasOpenActivity as boolean) ?? false,
           hasOverdueTask: (opp.HasOverdueTask as boolean) ?? false,
           description: (opp.Description as string) ?? null,
-          accountReport: (opp.Account_Report__c as string) ?? null,
+          accountReport: account?.Account_Report__c ?? null,
           opportunityReport: (opp.Opportunity_Report__c as string) ?? null,
           supportTicketsSummary: (opp.Support_Tickets_Summary__c as string) ?? null,
         },

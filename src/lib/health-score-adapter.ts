@@ -13,7 +13,7 @@
  *      auto-renew clause, etc.).
  *
  *   2. EXTRACTED — parses the three AI-generated summary fields
- *      (`Account_Report__c`, `Opportunity_Report__c`, `Support_Tickets_Summary__c`)
+ *      (`Account.Account_Report__c`, `Opportunity_Report__c`, `Support_Tickets_Summary__c`)
  *      for keyword/numeric hints that populate the engine's veto-rule signals.
  *      Extraction is intentionally conservative: we only fill a signal when we
  *      have a fairly unambiguous match. Anything uncertain is left null so the
@@ -404,7 +404,7 @@ export function sfOpportunityToSignals(
   setDirect("activity_count_30d", extras.activity_count_30d ?? null);
 
   // Probable_Outcome__c soft-hint for termination (NOT a confirmed veto —
-  // we only set termination_notice from explicit text in Account_Report__c)
+  // we only set termination_notice from explicit text in Account.Account_Report__c)
   const outcome = (extras.probable_outcome ?? "").toLowerCase();
   if (outcome.includes("likely to churn") || outcome.includes("churn")) {
     // Leave termination_notice alone — it's a hard veto rule.
@@ -414,7 +414,7 @@ export function sfOpportunityToSignals(
 
   // ── 2. Keyword extraction from the three AI summary fields ────────────────
 
-  const acct = extractAccountReport(opp.Account_Report__c);
+  const acct = extractAccountReport(opp.Account?.Account_Report__c ?? null);
   if (acct.has_credit_hold !== undefined) setExtracted("has_credit_hold", acct.has_credit_hold);
   if (acct.has_write_off !== undefined) setExtracted("has_write_off", acct.has_write_off);
   if (acct.has_active_dispute !== undefined) setExtracted("has_active_dispute", acct.has_active_dispute);

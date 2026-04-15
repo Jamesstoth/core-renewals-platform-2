@@ -36,7 +36,7 @@ const OPP_SOQL = `
     LastActivityDate, Next_Follow_Up_Date__c, NextStep,
     IsClosed, IsWon, HasOpenActivity, HasOverdueTask,
     Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c,
-    Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
+    Account.Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
   FROM Opportunity
   WHERE IsClosed = false AND Type IN ('Renewal', 'Upsell')
   ORDER BY CloseDate ASC
@@ -224,7 +224,7 @@ export async function POST() {
     const now = new Date();
     const rows = opps.map((opp) => {
       const rules = evaluate(opp, now);
-      const account = opp.Account as { Name?: string } | null;
+      const account = opp.Account as { Name?: string; Account_Report__c?: string } | null;
       const owner = opp.Owner as { Name?: string } | null;
       const health = scoreSfOpportunity(opp as unknown as SfOpportunityRecord);
 
@@ -251,7 +251,7 @@ export async function POST() {
         health_confidence: health.data_confidence,
         health_overrides: health.overrides_applied.map((o) => o.rule).join("; ") || null,
         churn_risk_category: (opp.AI_Churn_Risk_Category__c as string) ?? null,
-        account_report: (opp.Account_Report__c as string) ?? null,
+        account_report: account?.Account_Report__c ?? null,
         opportunity_report: (opp.Opportunity_Report__c as string) ?? null,
         support_tickets_summary: (opp.Support_Tickets_Summary__c as string) ?? null,
         last_activity_date: (opp.LastActivityDate as string) ?? null,
