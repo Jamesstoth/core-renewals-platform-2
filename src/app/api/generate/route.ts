@@ -29,24 +29,34 @@ function buildContext(opp: Record<string, unknown>, activityHistory: Record<stri
     })
     .join("\n");
 
-  const description = (opp.description as string) ?? null;
+  const description          = (opp.description as string) ?? null;
+  const accountReport        = (opp.accountReport as string) ?? null;
+  const opportunityReport    = (opp.opportunityReport as string) ?? null;
+  const supportTicketsSummary = (opp.supportTicketsSummary as string) ?? null;
 
   return `OPPORTUNITY DETAILS:
 - Account: ${opp.accountName}
 - Opportunity: ${opp.opportunityName}
 - Owner/Rep: ${opp.owner}
 - Stage: ${opp.stage}
+- Product Family: ${opp.productFamily ?? "N/A"}
 - ARR: $${Number(opp.arr ?? 0).toLocaleString()}
 - Renewal Date: ${opp.renewalDate ?? "N/A"}
 - Close Date: ${opp.closeDate ?? "N/A"}
 - Last Contact: ${opp.lastContactDate ?? "N/A"}
 - Days Since Renewal Call: ${opp.daysSinceLastRenewalCall ?? "N/A"}
+- Renewal Call Logged: ${opp.renewalCallLogged ? "Yes" : "No"}
+- Has Open Activity: ${opp.hasOpenActivity ? "Yes" : "No"}
+- Has Overdue Task: ${opp.hasOverdueTask ? "Yes" : "No"}
 - Next Step: ${opp.nextStepOwner ?? "N/A"}
 - Queue Status: ${opp.queueStatus}
 - Flag Reason: ${opp.flagReason}
 - Health Score: ${opp.healthScore ?? "N/A"}
 - Churn Risk: ${opp.churnRiskCategory ?? "N/A"}
 ${description ? `\nDESCRIPTION/NOTES:\n${description}` : ""}
+${opportunityReport ? `\nOPPORTUNITY REPORT (SF Opportunity_Report__c):\n${opportunityReport}` : ""}
+${accountReport ? `\nACCOUNT REPORT (SF Account.Account_Report__c):\n${accountReport}` : ""}
+${supportTicketsSummary ? `\nSUPPORT TICKETS SUMMARY (SF Account.Support_Tickets_Summary__c):\n${supportTicketsSummary}` : ""}
 
 ACTIVITY HISTORY (${activityHistory?.length ?? 0} entries):
 ${activityLines || "  No activity recorded."}`;
@@ -139,6 +149,48 @@ ${context}`,
 
       return NextResponse.json({
         text: response.choices[0]?.message?.content ?? "",
+      });
+    }
+
+    if (type === "signals") {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.4",
+        reasoning_effort: "high",
+        messages: [
+          {
+            role: "system",
+            content: `You are a renewals intelligence analyst. Examine the Salesforce data for this renewal opportunity and extract concrete positive and negative signals.
+
+Positive signals = evidence the deal is healthy and likely to renew (engagement, advocacy, product adoption, timely next steps, clean support history, recent meaningful activity).
+Negative signals = evidence of churn risk or stalling (gaps in engagement, missed follow-ups, support escalations, unresolved tickets, silence from the customer, MEDDPICCS gaps, pricing pushback).
+
+Ground every signal in specific evidence from the context — do NOT speculate or invent facts not in the data. If something is absent from the data, either skip it or note it as a gap.
+
+Each signal must have:
+- label: a short phrase (≤ 8 words)
+- evidence: one sentence citing the specific data point (dates, field names, activity subjects)
+- severity: "high" | "medium" | "low"
+- category: one of "engagement" | "stakeholder" | "product" | "support" | "pricing" | "timing" | "risk_flag"
+
+Return strict JSON with this exact shape:
+{"positiveSignals": [{"label": "...", "evidence": "...", "severity": "...", "category": "..."}], "negativeSignals": [...]}
+
+Aim for 2–5 signals per side. If there's genuinely nothing to report on one side, return an empty array for that side.`,
+          },
+          {
+            role: "user",
+            content: `Extract positive and negative signals from this opportunity:\n\n${context}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(content);
+
+      return NextResponse.json({
+        positiveSignals: Array.isArray(parsed.positiveSignals) ? parsed.positiveSignals : [],
+        negativeSignals: Array.isArray(parsed.negativeSignals) ? parsed.negativeSignals : [],
       });
     }
 
