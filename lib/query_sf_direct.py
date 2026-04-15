@@ -96,8 +96,10 @@ SF_SECURITY_TOKEN = os.environ["SF_SECURITY_TOKEN"]
 SF_CLIENT_ID = os.environ.get("SF_CLIENT_ID", "")
 SF_CLIENT_SECRET = os.environ.get("SF_CLIENT_SECRET", "")
 
-# Login URL - use test.salesforce.com for sandboxes
-SF_LOGIN_URL = os.environ.get("SF_LOGIN_URL", "https://login.salesforce.com")
+# Login URL - use test.salesforce.com for sandboxes.
+# Use `or` (not the get() default) so an empty env var also falls back —
+# GH Actions resolves missing secrets to "" rather than leaving the var unset.
+SF_LOGIN_URL = os.environ.get("SF_LOGIN_URL") or "https://login.salesforce.com"
 
 # API version
 SF_API_VERSION = "v60.0"
