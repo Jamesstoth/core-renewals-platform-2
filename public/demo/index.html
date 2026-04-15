@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Renewal Dashboard</title>
+<style>
+  :root {
+    --bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;--border:#e2e8f0;
+    --text:#1e293b;--muted:#64748b;
+    --green:#16a34a;--blue:#2563eb;--yellow:#ca8a04;--orange:#ea580c;--red:#dc2626;
+    --accent:#4f46e5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+  .container{max-width:850px;width:100%}
+  .header{text-align:center;margin-bottom:40px}
+  h1{font-size:32px;font-weight:800;margin-bottom:8px}
+  h1 span{color:var(--accent)}
+  .subtitle{color:var(--muted);font-size:14px}
+  .cards{display:grid;gap:16px;margin-bottom:32px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px;text-decoration:none;color:var(--text);transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.12);border-color:var(--accent)}
+  .card h2{font-size:18px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+  .card p{color:var(--muted);font-size:13px;line-height:1.6}
+  .section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:16px;text-align:center}
+  .stats{display:flex;gap:10px;justify-content:center;flex-wrap:nowrap}
+  .stat{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:18px 12px;flex:1;max-width:130px;text-align:center;text-decoration:none;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .stat:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+  .stat .value{font-size:28px;font-weight:800;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+  .stat .label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:8px;font-weight:700}
+  .stat.good{border-color:var(--blue)} .stat.good .value{color:var(--blue)}
+  .stat.good:hover{background:rgba(37,99,235,.05)}
+  .stat.moderate{border-color:var(--yellow)} .stat.moderate .value{color:var(--yellow)}
+  .stat.moderate:hover{background:rgba(202,138,4,.05)}
+  .stat.poor{border-color:var(--orange)} .stat.poor .value{color:var(--orange)}
+  .stat.poor:hover{background:rgba(234,88,12,.05)}
+  .stat.critical{border-color:var(--red)} .stat.critical .value{color:var(--red)}
+  .stat.critical:hover{background:rgba(220,38,38,.05)}
+  .metrics{display:flex;gap:16px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 24px;text-align:center;min-width:160px;text-decoration:none;cursor:pointer;transition:all .2s}
+  .metric:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1);border-color:var(--accent)}
+  .metric .value{font-size:24px;font-weight:800;line-height:1}
+  .metric .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:6px}
+  .metric.healthy .value{color:var(--green)}
+  .metric.warning .value{color:var(--orange)}
+  .metric.danger .value{color:var(--red)}
+  .owner-section{margin-top:32px}
+  .owner-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;width:100%}
+  .owner-table table{width:100%;border-collapse:collapse}
+  .owner-table th{background:var(--surface2);padding:12px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:left;border-bottom:2px solid var(--border)}
+  .owner-table td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}
+  .owner-table tr:last-child td{border-bottom:none}
+  .owner-table tr:hover{background:var(--surface2)}
+  .owner-table tr.selected{background:rgba(79,70,229,.1)}
+  .filter-badge{display:none;background:var(--accent);color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;margin-top:12px;cursor:pointer}
+  .filter-badge:hover{background:#4338ca}
+  .filter-badge.active{display:inline-block}
+  footer{margin-top:40px;color:var(--muted);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📊 Renewal <span>Dashboard</span></h1>
+    <p class="subtitle">Generated 2026-04-09 15:40</p>
+    <span id="filterBadge" class="filter-badge" onclick="clearFilter()">Showing: <span id="filterOwner"></span> ✕</span>
+  </div>
+
+  <div class="cards">
+    <a href="renewal-health-dashboard.html" class="card">
+      <h2>📈 Pipeline</h2>
+      <p>KPI overview with tier distribution, charts, and filterable opportunities table.</p>
+    </a>
+    <a href="kpi-signals.html" class="card">
+      <h2>🏥 Opportunity Health</h2>
+      <p>Detailed signal values — activity gaps, churn risk, sentiment, renewal dates, and more.</p>
+    </a>
+    <a href="workflow-signals.html" class="card">
+      <h2>⚡ Workflow Signals</h2>
+      <p>Boolean trigger matrix for workflow automation — shows which signals are active per opportunity.</p>
+    </a>
+  </div>
+
+  <div class="section-label">Pipeline Summary</div>
+  <div class="stats">
+    <a href="renewal-health-dashboard.html" class="stat">
+      <div class="value" id="statOpps">319</div>
+      <div class="label">Opportunities</div>
+    </a>
+    <a href="renewal-health-dashboard.html" class="stat">
+      <div class="value" id="statArr">$77.6M</div>
+      <div class="label">Pipeline ARR</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-good" class="stat good">
+      <div class="value" id="statGood">180</div>
+      <div class="label">Good</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-moderate" class="stat moderate">
+      <div class="value" id="statModerate">113</div>
+      <div class="label">Moderate</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-poor" class="stat poor">
+      <div class="value" id="statPoor">26</div>
+      <div class="label">Poor</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-critical" class="stat critical">
+      <div class="value" id="statCritical">0</div>
+      <div class="label">Critical</div>
+    </a>
+  </div>
+
+  <div class="metrics">
+    <a href="renewal-health-dashboard.html" class="metric warning" id="metricScoreBox">
+      <div class="value" id="metricScore">69</div>
+      <div class="label">ARR-Weighted Score</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-poor" class="metric healthy" id="metricPctBox">
+      <div class="value" id="metricPct">4.5%</div>
+      <div class="label">At-Risk ARR</div>
+    </a>
+    <a href="renewal-health-dashboard.html#tier-poor" class="metric" id="metricAtRiskBox">
+      <div class="value" id="metricAtRisk">$3.5M</div>
+      <div class="label">Poor + Critical ARR</div>
+    </a>
+  </div>
+
+  <div class="owner-section">
+    <div class="section-label">Owner Performance</div>
+    <div class="owner-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Owner</th>
+            <th style="text-align:right">Pipeline ARR</th>
+            <th style="text-align:center">Opps</th>
+            <th style="text-align:center">Avg Score</th>
+            <th style="text-align:center">Good</th>
+            <th style="text-align:center">Moderate</th>
+            <th style="text-align:center">Poor</th>
+            <th style="text-align:center">Critical</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-owner="Sebastian Desand" onclick="filterByOwner('Sebastian Desand')" style="cursor:pointer">
+          <td style="font-weight:600;color:var(--accent)">Sebastian Desand</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">$34.4M</td>
+          <td style="text-align:center">58</td>
+          <td style="text-align:center;font-weight:700;color:#ca8a04">67</td>
+          <td style="text-align:center;color:var(--blue)">34</td>
+          <td style="text-align:center;color:var(--yellow)">21</td>
+          <td style="text-align:center;color:var(--orange)">3</td>
+          <td style="text-align:center;color:var(--red)">0</td>
+        </tr><tr data-owner="Tim Courtenay" onclick="filterByOwner('Tim Courtenay')" style="cursor:pointer">
+          <td style="font-weight:600;color:var(--accent)">Tim Courtenay</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">$31.0M</td>
+          <td style="text-align:center">72</td>
+          <td style="text-align:center;font-weight:700;color:#16a34a">70</td>
+          <td style="text-align:center;color:var(--blue)">59</td>
+          <td style="text-align:center;color:var(--yellow)">8</td>
+          <td style="text-align:center;color:var(--orange)">5</td>
+          <td style="text-align:center;color:var(--red)">0</td>
+        </tr><tr data-owner="James Stothard" onclick="filterByOwner('James Stothard')" style="cursor:pointer">
+          <td style="font-weight:600;color:var(--accent)">James Stothard</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">$6.9M</td>
+          <td style="text-align:center">58</td>
+          <td style="text-align:center;font-weight:700;color:#ca8a04">68</td>
+          <td style="text-align:center;color:var(--blue)">33</td>
+          <td style="text-align:center;color:var(--yellow)">24</td>
+          <td style="text-align:center;color:var(--orange)">1</td>
+          <td style="text-align:center;color:var(--red)">0</td>
+        </tr><tr data-owner="James Quigley" onclick="filterByOwner('James Quigley')" style="cursor:pointer">
+          <td style="font-weight:600;color:var(--accent)">James Quigley</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">$3.3M</td>
+          <td style="text-align:center">48</td>
+          <td style="text-align:center;font-weight:700;color:#ca8a04">63</td>
+          <td style="text-align:center;color:var(--blue)">19</td>
+          <td style="text-align:center;color:var(--yellow)">23</td>
+          <td style="text-align:center;color:var(--orange)">6</td>
+          <td style="text-align:center;color:var(--red)">0</td>
+        </tr><tr data-owner="Fredrik Scheike" onclick="filterByOwner('Fredrik Scheike')" style="cursor:pointer">
+          <td style="font-weight:600;color:var(--accent)">Fredrik Scheike</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">$2.0M</td>
+          <td style="text-align:center">83</td>
+          <td style="text-align:center;font-weight:700;color:#ca8a04">64</td>
+          <td style="text-align:center;color:var(--blue)">35</td>
+          <td style="text-align:center;color:var(--yellow)">37</td>
+          <td style="text-align:center;color:var(--orange)">11</td>
+          <td style="text-align:center;color:var(--red)">0</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<footer>Renewal Dashboard · 2026-04-09 15:40</footer>
+
+<script>
+const ALL_OPPS = [{"owner": "James Stothard", "arr": 66875.04, "score": 63, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 109661.28, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 82308.6, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 1359107.28, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 202500.0, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 23906.28, "score": 68, "tier": "moderate"}, {"owner": "James Stothard", "arr": 11601.6, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 5247.24, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 193746.24, "score": 67, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 471801.96, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 5507.28, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 50976.12, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19125.0, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 23405.88, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 56250.0, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 337500.0, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 24999.96, "score": 67, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 19125.0, "score": 67, "tier": "moderate"}, {"owner": "James Quigley", "arr": 43976.52, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 623514.0, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 69321.6, "score": 62, "tier": "moderate"}, {"owner": "James Quigley", "arr": 143554.68, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 38046.72, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 51474.84, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 26156.28, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 586518.48, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 42187.56, "score": 68, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 39057.6, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 293848.8, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 219348.48, "score": 52, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 95156.28, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 31635.0, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 4406.28, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 244140.6, "score": 57, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 101904.48, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 25017.12, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 392252.4, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 7829.04, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 117740.04, "score": 70, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 491992.32, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19528.8, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 38527.08, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 15300.0, "score": 50, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 368789.4, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 136077.48, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 442462.56, "score": 67, "tier": "moderate"}, {"owner": "James Stothard", "arr": 50000.04, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 19828.08, "score": 50, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 1312187.52, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 2042128.2, "score": 60, "tier": "moderate"}, {"owner": "James Quigley", "arr": 12000.0, "score": 57, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 283094.52, "score": 67, "tier": "moderate"}, {"owner": "James Quigley", "arr": 55318.68, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 417999.96, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19125.0, "score": 50, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 2970.0, "score": 52, "tier": "moderate"}, {"owner": "James Quigley", "arr": 93843.72, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 51574.68, "score": 68, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 53644.44, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 51953.28, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 16132.8, "score": 67, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 325641.24, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 6000.0, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 12792.0, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 6000.0, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 32958.96, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 46000.56, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 36476.52, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 308343.72, "score": 68, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 426186.6, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 203041.32, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 784468.92, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 23235.24, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 4738.56, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 13693.92, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 5625.0, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 277042.44, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 46380.96, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 256488.6, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 342172.8, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 750598.56, "score": 57, "tier": "moderate"}, {"owner": "James Quigley", "arr": 148893.48, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 1943.76, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 113124.96, "score": 60, "tier": "moderate"}, {"owner": "James Stothard", "arr": 28288.2, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 5250.0, "score": 52, "tier": "moderate"}, {"owner": "James Quigley", "arr": 316380.84, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 56502.36, "score": 73, "tier": "good"}, {"owner": "James Quigley", "arr": 12000.0, "score": 52, "tier": "moderate"}, {"owner": "James Quigley", "arr": 35000.04, "score": 47, "tier": "poor"}, {"owner": "James Quigley", "arr": 23113.08, "score": 63, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 25898.4, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 20718.72, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 40095.0, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 35000.04, "score": 60, "tier": "moderate"}, {"owner": "James Quigley", "arr": 35000.04, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 14540.76, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 149394.6, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 196471.92, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 195733.08, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 119499.96, "score": 63, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 1584.36, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19528.8, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 58158.0, "score": 60, "tier": "moderate"}, {"owner": "James Stothard", "arr": 224235.72, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 121491.36, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 84193.08, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 224285.64, "score": 73, "tier": "good"}, {"owner": "James Quigley", "arr": 115208.88, "score": 73, "tier": "good"}, {"owner": "James Quigley", "arr": 62871.0, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 6716.28, "score": 62, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 40498.44, "score": 65, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 15421.92, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 22495.92, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 16692.24, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19867.2, "score": 65, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 19995.24, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 422676.24, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 5810988.12, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 178270.32, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 201812.64, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 705680.16, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 210492.24, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 20100.6, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 39062.52, "score": 65, "tier": "moderate"}, {"owner": "James Stothard", "arr": 62499.96, "score": 65, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 562280.64, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 162373.8, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 31782.48, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 370531.68, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 216486.12, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 390662.52, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 152801.64, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 6259.2, "score": 65, "tier": "moderate"}, {"owner": "James Stothard", "arr": 11717.28, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 12017.64, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 46250.04, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 16500.0, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 137499.96, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 7438.68, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 5564.16, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 7163.04, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 8744.76, "score": 55, "tier": "moderate"}, {"owner": "James Stothard", "arr": 81656.28, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 8016.36, "score": 52, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 19345.2, "score": 65, "tier": "moderate"}, {"owner": "James Stothard", "arr": 125000.04, "score": 63, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 107325.0, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 6749999.88, "score": 73, "tier": "good"}, {"owner": "James Quigley", "arr": 71032.68, "score": 57, "tier": "moderate"}, {"owner": "James Quigley", "arr": 25230.0, "score": 62, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 16312.56, "score": 65, "tier": "moderate"}, {"owner": "James Quigley", "arr": 8662.92, "score": 68, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 29429.76, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 38759.88, "score": 42, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 209519.88, "score": 70, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 465391.2, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 21875.04, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 44958.36, "score": 52, "tier": "moderate"}, {"owner": "James Stothard", "arr": 85846.68, "score": 57, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 26653.08, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 175257.48, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 41369.88, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 25549.44, "score": 67, "tier": "moderate"}, {"owner": "James Quigley", "arr": 84826.56, "score": 67, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 6245.76, "score": 35, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 612900.0, "score": 65, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 193450.08, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 700074.96, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 135000.0, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 161250.0, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 174061.56, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 305021.64, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 30981.48, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 7812.48, "score": 45, "tier": "poor"}, {"owner": "James Quigley", "arr": 45304.68, "score": 78, "tier": "good"}, {"owner": "James Quigley", "arr": 8064.0, "score": 65, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 6520.92, "score": 65, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 32917.68, "score": 55, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 557062.08, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 153116.28, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 28450.44, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 111250.08, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 41783.04, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 1324810.08, "score": 70, "tier": "good"}, {"owner": "James Quigley", "arr": 63933.36, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 27479.28, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 166025.04, "score": 78, "tier": "good"}, {"owner": "James Quigley", "arr": 18795.36, "score": 60, "tier": "moderate"}, {"owner": "James Quigley", "arr": 91287.84, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 3915.0, "score": 42, "tier": "poor"}, {"owner": "James Quigley", "arr": 84833.52, "score": 47, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 195312.48, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 125000.04, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 139779.96, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 6152.4, "score": 73, "tier": "good"}, {"owner": "James Quigley", "arr": 239250.0, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 387617.04, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 31967.76, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 11566.44, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 51718.92, "score": 73, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 5493.72, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 8700.0, "score": 47, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 20146.92, "score": 47, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 630073.8, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 22687.56, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 144796.92, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 164922.96, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 46875.0, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 37353.6, "score": 67, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 19125.0, "score": 67, "tier": "moderate"}, {"owner": "James Quigley", "arr": 12000.0, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 187500.0, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 145007.04, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 54478.92, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 292183.56, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 140279.52, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 64461.24, "score": 68, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 62248.56, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 28610.28, "score": 67, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 38823.72, "score": 47, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 794642.88, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 891269.28, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 1392961.68, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 156249.96, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 233482.68, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 239640.96, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 179687.52, "score": 52, "tier": "moderate"}, {"owner": "James Stothard", "arr": 88046.88, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 80719.8, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 2000.04, "score": 60, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 290908.08, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 20852.64, "score": 68, "tier": "moderate"}, {"owner": "James Quigley", "arr": 37500.0, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 74620.44, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 27956.4, "score": 63, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 475449.24, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 335398.92, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 10721.28, "score": 78, "tier": "good"}, {"owner": "James Quigley", "arr": 91875.0, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 389515.56, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 150307.8, "score": 75, "tier": "good"}, {"owner": "James Quigley", "arr": 108750.0, "score": 70, "tier": "good"}, {"owner": "James Stothard", "arr": 6000.0, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 9057.72, "score": 52, "tier": "moderate"}, {"owner": "James Stothard", "arr": 11604.48, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 22687.56, "score": 45, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 517230.0, "score": 78, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 7500.0, "score": 73, "tier": "good"}, {"owner": "James Stothard", "arr": 16745.28, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 511559.4, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 172977.12, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 93843.72, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 21600.0, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 126777.0, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 1915995.12, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 290459.88, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 871636.32, "score": 73, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 349202.4, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 279999.96, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 9673.8, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 407207.4, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 0.0, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 189008.04, "score": 70, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 116250.0, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 206146.2, "score": 78, "tier": "good"}, {"owner": "James Stothard", "arr": 38057.52, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 9399.96, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 15666.72, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 72099.96, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 2600.04, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 99999.96, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 3672000.0, "score": 78, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 1599999.96, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 19496.52, "score": 62, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 22395.96, "score": 67, "tier": "moderate"}, {"owner": "James Stothard", "arr": 25655.04, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 226170.0, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 700312.56, "score": 75, "tier": "good"}, {"owner": "James Stothard", "arr": 5869.08, "score": 70, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 60000.0, "score": 75, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 2.04, "score": 45, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 482324.88, "score": 75, "tier": "good"}, {"owner": "Fredrik Scheike", "arr": 37382.88, "score": 47, "tier": "poor"}, {"owner": "James Quigley", "arr": 69999.96, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 922798.68, "score": 67, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 212000.04, "score": 67, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 240225.24, "score": 75, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 267499.8, "score": 60, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 31555.08, "score": 50, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 71843.76, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 891724.68, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 53550.0, "score": 70, "tier": "good"}, {"owner": "Tim Courtenay", "arr": 1036875.12, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 707118.96, "score": 62, "tier": "moderate"}, {"owner": "Fredrik Scheike", "arr": 24719.28, "score": 67, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 596951.28, "score": 57, "tier": "moderate"}, {"owner": "James Stothard", "arr": 165250.32, "score": 52, "tier": "moderate"}, {"owner": "James Stothard", "arr": 30000.0, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 102044.28, "score": 45, "tier": "poor"}, {"owner": "James Quigley", "arr": 23460.84, "score": 35, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 531776.28, "score": 63, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 233199.96, "score": 67, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 283362.48, "score": 35, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 1035714.24, "score": 45, "tier": "poor"}, {"owner": "Fredrik Scheike", "arr": 99090.48, "score": 57, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 869841.24, "score": 45, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 687499.92, "score": 78, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 171202.56, "score": 67, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 96799.92, "score": 45, "tier": "poor"}, {"owner": "Tim Courtenay", "arr": 622500.0, "score": 73, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 216300.12, "score": 70, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 180000.0, "score": 63, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 79380.0, "score": 65, "tier": "moderate"}, {"owner": "Sebastian Desand", "arr": 253426.32, "score": 70, "tier": "good"}, {"owner": "Sebastian Desand", "arr": 569107.92, "score": 52, "tier": "moderate"}, {"owner": "James Quigley", "arr": 22701.84, "score": 45, "tier": "poor"}, {"owner": "Sebastian Desand", "arr": 873567.48, "score": 52, "tier": "moderate"}, {"owner": "Tim Courtenay", "arr": 514059.24, "score": 35, "tier": "poor"}];
+
+function fmtARR(n) {
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + Math.round(n/1e3) + 'K';
+  return '$' + n;
+}
+
+function updateStats(opps) {
+  const total = opps.length;
+  const totalArr = opps.reduce((s,o) => s + o.arr, 0);
+  const tiers = {'good':0,'moderate':0,'poor':0,'critical':0};
+  const tierArrs = {'good':0,'moderate':0,'poor':0,'critical':0};
+  opps.forEach(o => {
+    if (tiers[o.tier] !== undefined) tiers[o.tier]++;
+    if (tierArrs[o.tier] !== undefined) tierArrs[o.tier] += o.arr;
+  });
+
+  const weightedScore = totalArr > 0 ? opps.reduce((s,o) => s + o.score * o.arr, 0) / totalArr : 0;
+  const atRiskArr = tierArrs.poor + tierArrs.critical;
+  const atRiskPct = totalArr > 0 ? (atRiskArr / totalArr * 100) : 0;
+
+  document.getElementById('statOpps').textContent = total;
+  document.getElementById('statArr').textContent = fmtARR(totalArr);
+  document.getElementById('statGood').textContent = tiers.good;
+  document.getElementById('statModerate').textContent = tiers.moderate;
+  document.getElementById('statPoor').textContent = tiers.poor;
+  document.getElementById('statCritical').textContent = tiers.critical;
+  document.getElementById('metricScore').textContent = Math.round(weightedScore);
+  document.getElementById('metricPct').textContent = atRiskPct.toFixed(1) + '%';
+  document.getElementById('metricAtRisk').textContent = fmtARR(atRiskArr);
+
+  // Update metric colors
+  const scoreEl = document.getElementById('metricScore').parentElement;
+  scoreEl.className = 'metric ' + (weightedScore >= 70 ? 'healthy' : weightedScore >= 50 ? 'warning' : 'danger');
+  const pctEl = document.getElementById('metricPct').parentElement;
+  pctEl.className = 'metric ' + (atRiskPct < 5 ? 'healthy' : atRiskPct < 15 ? 'warning' : 'danger');
+}
+
+function filterByOwner(owner) {
+  const filtered = ALL_OPPS.filter(o => o.owner === owner);
+  updateStats(filtered);
+
+  document.querySelectorAll('.owner-table tr[data-owner]').forEach(r => {
+    r.classList.toggle('selected', r.dataset.owner === owner);
+  });
+
+  document.getElementById('filterOwner').textContent = owner;
+  document.getElementById('filterBadge').classList.add('active');
+
+  // Update links to include owner param
+  document.querySelectorAll('.stat, .metric').forEach(a => {
+    const href = a.getAttribute('href');
+    if (href && href.includes('renewal-health-dashboard')) {
+      const base = href.split('?')[0].split('#')[0];
+      const hash = href.includes('#') ? href.split('#')[1] : '';
+      a.setAttribute('href', base + '?owner=' + encodeURIComponent(owner) + (hash ? '#' + hash : ''));
+    }
+  });
+}
+
+function clearFilter() {
+  updateStats(ALL_OPPS);
+  document.querySelectorAll('.owner-table tr[data-owner]').forEach(r => r.classList.remove('selected'));
+  document.getElementById('filterBadge').classList.remove('active');
+
+  // Reset links
+  document.querySelectorAll('.stat, .metric').forEach(a => {
+    const href = a.getAttribute('href');
+    if (href && href.includes('renewal-health-dashboard')) {
+      const base = href.split('?')[0];
+      const hash = href.includes('#') ? '#' + href.split('#')[1] : '';
+      a.setAttribute('href', base + hash);
+    }
+  });
+}
+</script>
+</body>
+</html>
