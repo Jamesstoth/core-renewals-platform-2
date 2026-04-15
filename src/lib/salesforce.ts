@@ -38,8 +38,8 @@ export const OPPORTUNITIES_QUERY = `
     Priority_Score__c,
     Product__c,
     Account.Account_Report__c,
-    Opportunity_Report__c,
-    Support_Tickets_Summary__c
+    Account.Support_Tickets_Summary__c,
+    Opportunity_Report__c
   FROM Opportunity
   WHERE IsClosed = false
     AND Type IN ('Renewal', 'Upsell')
@@ -193,7 +193,7 @@ export function sfOpportunityToPortalOpportunity(
     description: null, // Description is stored directly in Supabase, not on SfOpportunityRecord
     accountReport: opp.Account?.Account_Report__c ?? null,
     opportunityReport: opp.Opportunity_Report__c ?? null,
-    supportTicketsSummary: opp.Support_Tickets_Summary__c ?? null,
+    supportTicketsSummary: opp.Account?.Support_Tickets_Summary__c ?? null,
   };
 }
 

@@ -13,7 +13,7 @@
  *      auto-renew clause, etc.).
  *
  *   2. EXTRACTED — parses the three AI-generated summary fields
- *      (`Account.Account_Report__c`, `Opportunity_Report__c`, `Support_Tickets_Summary__c`)
+ *      (`Account.Account_Report__c`, `Opportunity_Report__c`, `Account.Support_Tickets_Summary__c`)
  *      for keyword/numeric hints that populate the engine's veto-rule signals.
  *      Extraction is intentionally conservative: we only fill a signal when we
  *      have a fairly unambiguous match. Anything uncertain is left null so the
@@ -430,7 +430,7 @@ export function sfOpportunityToSignals(
   if (oppRep.renewal_started !== undefined) setExtracted("renewal_started", oppRep.renewal_started);
   if (oppRep.amendment_type) setExtracted("amendment_type", oppRep.amendment_type);
 
-  const sup = extractSupportSummary(opp.Support_Tickets_Summary__c);
+  const sup = extractSupportSummary(opp.Account?.Support_Tickets_Summary__c ?? null);
   if (sup.open_p1_count !== undefined) setExtracted("open_p1_count", sup.open_p1_count);
   if (sup.open_p2_count !== undefined) setExtracted("open_p2_count", sup.open_p2_count);
   if (sup.oldest_p1_hours !== undefined) setExtracted("oldest_p1_hours", sup.oldest_p1_hours);

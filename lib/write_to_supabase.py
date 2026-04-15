@@ -108,7 +108,7 @@ def norm_opp(rec, gate_flags):
         'description':           rec.get('Description'),
         'account_report':        acct.get('Account_Report__c'),
         'opportunity_report':    rec.get('Opportunity_Report__c'),
-        'support_tickets_summary': rec.get('Support_Tickets_Summary__c'),
+        'support_tickets_summary': acct.get('Support_Tickets_Summary__c'),
         'gate3_violation_date':  _date(rec.get('Gate_3_Violation_Date__c')),
         'in_gate1':              gate_flags.get('in_gate1', False),
         'in_gate2':              gate_flags.get('in_gate2', False),
