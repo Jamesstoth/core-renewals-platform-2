@@ -362,6 +362,9 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
           </button>
         </div>
         <div className="view-toggle" aria-label="Reports">
+          <a className="view-toggle-btn" href="/gates">
+            Gates
+          </a>
           <a className="view-toggle-btn" href="/demo/renewal-health-dashboard.html">
             Pipeline Report
           </a>
