@@ -36,6 +36,14 @@ function oppLink(id: string, name: string | null) {
   return <Link href={`/opportunity/${id}`}>{name ?? id}</Link>
 }
 
+/** Mirror of the demo workflow-signals.html signalClick(): jump to the
+ * Vercel-hosted opportunity portal with the trigger gate label so the
+ * landing page can display which signal flagged it. */
+const VERCEL_PORTAL = 'https://renewals-portal-stage1.vercel.app/opportunity'
+function triggerUrl(oppId: string, triggerLabel: string) {
+  return `${VERCEL_PORTAL}/${oppId}?trigger_label=${encodeURIComponent(triggerLabel)}`
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Workflow Signals view — boolean trigger matrix
 // ═══════════════════════════════════════════════════════════════════════════
@@ -240,12 +248,19 @@ export function WorkflowSignalsView({ opportunities }: { opportunities: Opportun
                   {SIGNAL_COLS.map(c => (
                     <td key={c.key} style={{ textAlign: 'center' }}>
                       {r.sig[c.key]
-                        ? <span style={{
-                            display: 'inline-block',
-                            width: 12, height: 12,
-                            borderRadius: '50%',
-                            background: c.color,
-                          }} />
+                        ? <a
+                            href={triggerUrl(r.opp.id, c.label)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open in renewals portal — trigger: ${c.label}`}
+                            style={{
+                              display: 'inline-block',
+                              width: 12, height: 12,
+                              borderRadius: '50%',
+                              background: c.color,
+                              cursor: 'pointer',
+                            }}
+                          />
                         : <span style={{ color: 'var(--text-meta)' }}>·</span>}
                     </td>
                   ))}
