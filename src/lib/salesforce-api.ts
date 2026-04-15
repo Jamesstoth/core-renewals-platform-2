@@ -164,6 +164,65 @@ export async function fetchPipelineKpis(): Promise<PipelineKpis> {
   return k
 }
 
+/**
+ * Full list of opportunities matching the Pipeline KPI criteria — the broader
+ * active-renewals book for the core team, not the gate-bucketed Supabase
+ * subset. Used as the source of truth for the /pipeline table and its
+ * Stage/Owner/Product/Outcome filters so counts stay consistent with the
+ * cards.
+ */
+export interface PipelineOpportunity {
+  id: string
+  name: string | null
+  account: string | null
+  owner_name: string | null
+  product: string | null
+  stage: string | null
+  probable_outcome: string | null
+  opp_status: string | null
+  arr: number | null
+  renewal_date: string | null
+}
+
+interface SfPipelineRow extends Record<string, unknown> {
+  Id: string
+  Name: string | null
+  Account: { Name: string | null } | null
+  Owner: { Name: string | null } | null
+  Product__c: string | null
+  StageName: string | null
+  Probable_Outcome__c: string | null
+  Opportunity_Status__c: string | null
+  ARR__c: number | null
+  Renewal_Date__c: string | null
+}
+
+export async function fetchPipelineOpportunities(): Promise<PipelineOpportunity[]> {
+  const ownerList = CORE_OWNERS.map(n => `'${n}'`).join(', ')
+  const rows = await querySalesforce<SfPipelineRow>(
+    `SELECT Id, Name, Account.Name, Owner.Name, Product__c, StageName,
+            Probable_Outcome__c, Opportunity_Status__c, ARR__c, Renewal_Date__c
+     FROM Opportunity
+     WHERE Type = 'Renewal' AND IsClosed = false
+       AND Handled_by_BU__c = false
+       AND Owner.Name IN (${ownerList})
+       AND Renewal_Date__c > 2026-01-01`
+  )
+
+  return rows.map(r => ({
+    id:               r.Id,
+    name:             r.Name,
+    account:          r.Account?.Name ?? null,
+    owner_name:       r.Owner?.Name ?? null,
+    product:          r.Product__c,
+    stage:            r.StageName,
+    probable_outcome: r.Probable_Outcome__c,
+    opp_status:       r.Opportunity_Status__c,
+    arr:              r.ARR__c,
+    renewal_date:     r.Renewal_Date__c,
+  }))
+}
+
 async function runQuery<T extends Record<string, unknown>>(
   soql: string,
   isRetry: boolean

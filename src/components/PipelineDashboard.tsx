@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { Opportunity } from '@/lib/types'
-import type { PipelineKpis } from '@/lib/salesforce-api'
+import type { PipelineKpis, PipelineOpportunity } from '@/lib/salesforce-api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,7 +25,7 @@ function formatDate(d: string | null) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface Props {
-  opportunities: Opportunity[]
+  opportunities: PipelineOpportunity[]
   liveKpis?:     PipelineKpis | null
 }
 

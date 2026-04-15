@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useMemo, useCallback } from 'react'
 import type { Opportunity, LastRefresh, TabId } from '@/lib/types'
-import type { PipelineKpis } from '@/lib/salesforce-api'
+import type { PipelineKpis, PipelineOpportunity } from '@/lib/salesforce-api'
 import PipelineDashboard from './PipelineDashboard'
 import WorkflowQueue from './WorkflowQueue'
 import { WorkflowSignalsView } from './SignalViews'
@@ -248,11 +248,12 @@ function KpiCard({ tab, count, onClick }: { tab: TabDef; count: number; onClick:
 
 interface Props {
   opportunities: Opportunity[]
+  pipelineOpps:  PipelineOpportunity[]
   lastRefresh:   LastRefresh | null
   pipelineKpis:  PipelineKpis | null
 }
 
-export default function Dashboard({ opportunities, lastRefresh, pipelineKpis }: Props) {
+export default function Dashboard({ opportunities, pipelineOpps, lastRefresh, pipelineKpis }: Props) {
   const [activeTab, setActiveTab] = useState<TabId | null>(null)
   const [view, setView] = useState<'pipeline' | 'gates' | 'signals' | 'workflow' | 'framework'>('pipeline')
   const [dark, setDark] = useState(false)
@@ -341,7 +342,7 @@ export default function Dashboard({ opportunities, lastRefresh, pipelineKpis }: 
 
       {/* ── Pipeline view ── */}
       {!activeTab && view === 'pipeline' && (
-        <PipelineDashboard opportunities={opportunities} liveKpis={pipelineKpis} />
+        <PipelineDashboard opportunities={pipelineOpps} liveKpis={pipelineKpis} />
       )}
 
       {/* ── Signals view ── */}
