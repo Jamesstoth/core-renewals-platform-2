@@ -9,8 +9,10 @@
  */
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Opportunity } from '@/lib/types'
+import type { QueueItem } from '@/types/renewals'
+import ExpandedDetails from './ExpandedDetails'
 
 // ── shared helpers ───────────────────────────────────────────────────────────
 
@@ -36,13 +38,6 @@ function oppLink(id: string, name: string | null) {
   return <Link href={`/opportunity/${id}`}>{name ?? id}</Link>
 }
 
-/** Mirror of the demo workflow-signals.html signalClick(): jump to the
- * Vercel-hosted opportunity portal with the trigger gate label so the
- * landing page can display which signal flagged it. */
-const VERCEL_PORTAL = 'https://renewals-portal-stage1.vercel.app/opportunity'
-function triggerUrl(oppId: string, triggerLabel: string) {
-  return `${VERCEL_PORTAL}/${oppId}?trigger_label=${encodeURIComponent(triggerLabel)}`
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Workflow Signals view — boolean trigger matrix
@@ -115,6 +110,27 @@ export function WorkflowSignalsView({ opportunities }: { opportunities: Opportun
   const [ownerFilter, setOwnerFilter] = useState('')
   const [search, setSearch] = useState('')
   const [focusKey, setFocusKey] = useState<keyof Signals | ''>('')
+
+  // Inline drilldown — mirrors the Signals page card expansion. Clicking
+  // a signal dot expands a row below with the same ExpandedDetails view
+  // (AI overview, call objective, email drafts) plus a trigger_label
+  // banner showing which signal fired.
+  const [drill, setDrill] = useState<{ oppId: string; label: string } | null>(null)
+  const [queueItems, setQueueItems] = useState<QueueItem[] | null>(null)
+  const [queueLoading, setQueueLoading] = useState(false)
+  const [queueError, setQueueError] = useState<string | null>(null)
+
+  // Lazy-load the rich QueueItem dataset the first time a dot is clicked.
+  useEffect(() => {
+    if (!drill || queueItems || queueLoading) return
+    setQueueLoading(true)
+    setQueueError(null)
+    fetch('/api/opportunities')
+      .then(r => r.json())
+      .then(d => setQueueItems(d.items ?? []))
+      .catch(e => setQueueError(e instanceof Error ? e.message : 'Failed to load'))
+      .finally(() => setQueueLoading(false))
+  }, [drill, queueItems, queueLoading])
 
   const rows = useMemo(() =>
     opportunities.map(o => {
@@ -235,37 +251,60 @@ export function WorkflowSignalsView({ opportunities }: { opportunities: Opportun
             {filtered
               .sort((a, b) => b.count - a.count || (b.opp.arr ?? 0) - (a.opp.arr ?? 0))
               .slice(0, 300)
-              .map(r => (
-                <tr key={r.opp.id}>
-                  <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
-                    {oppLink(r.opp.id, r.opp.name)}
-                  </td>
-                  <td>{r.opp.owner_name ?? '—'}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtARR(r.opp.arr)}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: r.count >= 4 ? '#dc2626' : r.count >= 2 ? '#d97706' : 'var(--text-td)' }}>
-                    {r.count}
-                  </td>
-                  {SIGNAL_COLS.map(c => (
-                    <td key={c.key} style={{ textAlign: 'center' }}>
-                      {r.sig[c.key]
-                        ? <a
-                            href={triggerUrl(r.opp.id, c.label)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`Open in renewals portal — trigger: ${c.label}`}
-                            style={{
-                              display: 'inline-block',
-                              width: 12, height: 12,
-                              borderRadius: '50%',
-                              background: c.color,
-                              cursor: 'pointer',
-                            }}
+              .map(r => {
+                const isOpen = drill?.oppId === r.opp.id
+                return (
+                  <Fragment key={r.opp.id}>
+                    <tr>
+                      <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
+                        {oppLink(r.opp.id, r.opp.name)}
+                      </td>
+                      <td>{r.opp.owner_name ?? '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtARR(r.opp.arr)}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700, color: r.count >= 4 ? '#dc2626' : r.count >= 2 ? '#d97706' : 'var(--text-td)' }}>
+                        {r.count}
+                      </td>
+                      {SIGNAL_COLS.map(c => {
+                        const active = isOpen && drill?.label === c.label
+                        return (
+                          <td key={c.key} style={{ textAlign: 'center' }}>
+                            {r.sig[c.key]
+                              ? <button
+                                  type="button"
+                                  onClick={() => setDrill(active ? null : { oppId: r.opp.id, label: c.label })}
+                                  title={`Open inline — trigger: ${c.label}`}
+                                  style={{
+                                    display: 'inline-block',
+                                    width: 12, height: 12,
+                                    borderRadius: '50%',
+                                    background: c.color,
+                                    cursor: 'pointer',
+                                    border: active ? '2px solid var(--text-strong)' : 'none',
+                                    padding: 0,
+                                  }}
+                                />
+                              : <span style={{ color: 'var(--text-meta)' }}>·</span>}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={4 + SIGNAL_COLS.length} style={{ padding: 0, background: 'var(--surface2)' }}>
+                          <DrillPanel
+                            oppId={r.opp.id}
+                            triggerLabel={drill!.label}
+                            queueItems={queueItems}
+                            loading={queueLoading}
+                            error={queueError}
+                            onClose={() => setDrill(null)}
                           />
-                        : <span style={{ color: 'var(--text-meta)' }}>·</span>}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
             {filtered.length === 0 && (
               <tr><td colSpan={4 + SIGNAL_COLS.length} style={{ textAlign: 'center', color: 'var(--text-meta)', padding: '24px 0' }}>
                 No opportunities match your filters
@@ -274,6 +313,75 @@ export function WorkflowSignalsView({ opportunities }: { opportunities: Opportun
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+// ─── Inline drilldown panel (mirrors Signals page card expansion) ────────────
+
+function DrillPanel({
+  oppId, triggerLabel, queueItems, loading, error, onClose,
+}: {
+  oppId: string
+  triggerLabel: string
+  queueItems: QueueItem[] | null
+  loading: boolean
+  error: string | null
+  onClose: () => void
+}) {
+  const item = queueItems?.find(i => i.opportunity.id === oppId) ?? null
+
+  return (
+    <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border)' }}>
+      {/* Trigger banner */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 12,
+        padding: '8px 12px',
+        background: '#fef3c7',
+        border: '1px solid #fde68a',
+        borderRadius: 6,
+        color: '#92400e',
+        fontSize: 12,
+      }}>
+        <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', fontSize: 10 }}>
+          Triggered by
+        </span>
+        <span style={{ fontWeight: 600 }}>{triggerLabel}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            marginLeft: 'auto',
+            background: 'transparent',
+            border: '1px solid #d97706',
+            color: '#92400e',
+            borderRadius: 4,
+            padding: '2px 8px',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+        >
+          Close
+        </button>
+      </div>
+
+      {loading && (
+        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          Loading opportunity details…
+        </div>
+      )}
+      {error && !loading && (
+        <div style={{ padding: 16, color: '#dc2626', fontSize: 13 }}>Error: {error}</div>
+      )}
+      {!loading && !error && !item && queueItems && (
+        <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>
+          Opportunity not in workflow queue (only opps in active gates are loaded into the queue).
+        </div>
+      )}
+      {item && <ExpandedDetails item={item} />}
     </div>
   )
 }
