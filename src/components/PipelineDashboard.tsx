@@ -36,29 +36,36 @@ export default function PipelineDashboard({ opportunities }: Props) {
   const products = useMemo(() => [...new Set(opportunities.map(o => o.product).filter(Boolean) as string[])].sort(), [opportunities])
   const outcomes = useMemo(() => [...new Set(opportunities.map(o => o.probable_outcome || 'Undetermined'))].sort(), [opportunities])
 
-  const filtered = useMemo(() => {
+  // Pre-outcome filter — KPI cards read from this so each card always
+  // shows its own outcome total, independent of which card is currently
+  // selected. Stage/owner/product filters still apply to both.
+  const kpiBase = useMemo(() => {
     return opportunities.filter(o => {
-      if (stageFilter   && o.stage         !== stageFilter)   return false
-      if (ownerFilter   && o.owner_name    !== ownerFilter)   return false
-      if (productFilter && o.product       !== productFilter) return false
-      if (outcomeFilter && (o.probable_outcome || 'Undetermined') !== outcomeFilter) return false
+      if (stageFilter   && o.stage      !== stageFilter)   return false
+      if (ownerFilter   && o.owner_name !== ownerFilter)   return false
+      if (productFilter && o.product    !== productFilter) return false
       return true
     })
-  }, [opportunities, stageFilter, ownerFilter, productFilter, outcomeFilter])
+  }, [opportunities, stageFilter, ownerFilter, productFilter])
 
-  // KPIs
+  const filtered = useMemo(() => {
+    if (!outcomeFilter) return kpiBase
+    return kpiBase.filter(o => (o.probable_outcome || 'Undetermined') === outcomeFilter)
+  }, [kpiBase, outcomeFilter])
+
+  // KPIs (independent of outcome selection)
   const kpis = useMemo(() => {
     let totalArr = 0, winArr = 0, churnArr = 0, riskArr = 0
     let winCount = 0, churnCount = 0, riskCount = 0
-    for (const o of filtered) {
+    for (const o of kpiBase) {
       const arr = o.arr ?? 0
       totalArr += arr
       if (o.probable_outcome === 'Likely to Win')   { winArr   += arr; winCount++ }
       if (o.probable_outcome === 'Likely to Churn') { churnArr += arr; churnCount++ }
       if (!o.probable_outcome || o.probable_outcome === 'Undetermined') { riskArr += arr; riskCount++ }
     }
-    return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: filtered.length }
-  }, [filtered])
+    return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: kpiBase.length }
+  }, [kpiBase])
 
   // Table
   const sorted = useMemo(() => {
