@@ -295,6 +295,9 @@ a:hover { color: var(--link-hover); text-decoration: underline; }
   cursor: pointer;
   transition: background .12s, color .12s;
   white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 .view-toggle-btn:hover { color: var(--text); }
 .view-toggle-btn.active { background: var(--surface); color: var(--text-strong); box-shadow: 0 1px 3px rgba(0,0,0,.1); }

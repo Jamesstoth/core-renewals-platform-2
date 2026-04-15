@@ -361,6 +361,17 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
             Signals
           </button>
         </div>
+        <div className="view-toggle" aria-label="Reports">
+          <a className="view-toggle-btn" href="/demo/renewal-health-dashboard.html">
+            Pipeline Report
+          </a>
+          <a className="view-toggle-btn" href="/demo/kpi-signals.html">
+            Opp Health
+          </a>
+          <a className="view-toggle-btn" href="/demo/workflow-signals.html">
+            Workflow
+          </a>
+        </div>
         <button className="theme-toggle" onClick={() => setDark(d => !d)}>
           {dark ? '☀ Light' : '☾ Dark'}
         </button>
