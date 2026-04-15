@@ -62,4 +62,4 @@ export interface LastRefresh {
   activity_count: number | null
 }
 
-export type TabId = 'gate1' | 'gate2' | 'gate3' | 'gate4' | 'not_touched' | 'past_due' | 'calls'
+export type TabId = 'gate1' | 'gate2' | 'gate3' | 'gate4' | 'not_touched' | 'past_due'
