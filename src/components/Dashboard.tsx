@@ -356,12 +356,6 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
           >
             Accountability
           </button>
-          <button
-            className={`view-toggle-btn${view === 'signals' ? ' active' : ''}`}
-            onClick={() => { setView('signals'); setActiveTab(null) }}
-          >
-            Signals
-          </button>
         </div>
         <div className="view-toggle" aria-label="Reports">
           <button

@@ -55,6 +55,8 @@ interface Signals {
   silentChurn: boolean
   gate1:       boolean
   gate2:       boolean
+  gate3:       boolean
+  gate4:       boolean
   pastDue:     boolean
 }
 
@@ -64,6 +66,8 @@ const SIGNAL_COLS: { key: keyof Signals; label: string; color: string }[] = [
   { key: 'pastDue',     label: 'Past Due',       color: '#dc2626' },
   { key: 'gate1',       label: 'Gate 1',         color: '#ef4444' },
   { key: 'gate2',       label: 'Gate 2',         color: '#f97316' },
+  { key: 'gate3',       label: 'Gate 3',         color: '#eab308' },
+  { key: 'gate4',       label: 'Gate 4',         color: '#dc2626' },
   { key: 'gap14',       label: 'Gap >14d',       color: '#d97706' },
   { key: 'gap30',       label: 'Gap >30d',       color: '#dc2626' },
   { key: 'followUp',    label: 'Follow-up Late', color: '#d97706' },
@@ -96,6 +100,8 @@ function computeSignals(o: Opportunity, now: Date): Signals {
     silentChurn,
     gate1: !!o.in_gate1,
     gate2: !!o.in_gate2,
+    gate3: !!o.in_gate3,
+    gate4: !!o.in_gate4,
     pastDue,
   }
 }
@@ -144,7 +150,7 @@ export function WorkflowSignalsView({ opportunities }: { opportunities: Opportun
     const t: Record<keyof Signals, number> = {
       gap14: 0, gap30: 0, followUp: 0, churnHigh: 0, churnMedium: 0,
       imminent: 0, window: 0, hvoRisk: 0, silentChurn: 0,
-      gate1: 0, gate2: 0, pastDue: 0,
+      gate1: 0, gate2: 0, gate3: 0, gate4: 0, pastDue: 0,
     }
     for (const r of rows) {
       for (const k of Object.keys(t) as (keyof Signals)[]) {
