@@ -1,4 +1,11 @@
-import Link from 'next/link'
+'use client'
+
+/**
+ * Gates framework view — renders the 7-gate lifecycle documentation
+ * inside the /pipeline Dashboard. Pulls data from src/lib/gate-triggers.ts
+ * (the shared backend source of truth).
+ */
+
 import {
   GATES,
   GATE_ORDER,
@@ -8,8 +15,6 @@ import {
   type GateDefinition,
   type GateId,
 } from '@/lib/gate-triggers'
-
-export const dynamic = 'force-static'
 
 const FLAG_BY_GATE: Partial<Record<GateId, string[]>> = (() => {
   const out: Partial<Record<GateId, string[]>> = {}
@@ -200,117 +205,101 @@ function GateCard({ gate }: { gate: GateDefinition }) {
   )
 }
 
-export default function GatesPage() {
+export default function GatesFramework() {
   return (
-    <div>
-      {/* Header — mirrors .page-header on /pipeline */}
-      <header className="page-header">
-        <span className="brand">Gate &amp; Trigger Framework</span>
-        <span className="header-meta">
-          7-gate renewal lifecycle · v1.0 · Source: Renewal_Gate_Trigger_Framework.docx (April 2026)
-        </span>
-        <Link href="/pipeline" className="view-toggle-btn" style={{ border: '1px solid var(--border)' }}>
-          ← ISR Dashboard
-        </Link>
-        <Link href="/demo/index.html" className="view-toggle-btn" style={{ border: '1px solid var(--border)' }}>
-          Reports
-        </Link>
-      </header>
+    <div style={{ padding: '18px 20px', maxWidth: 1280, margin: '0 auto' }}>
+      {/* Critical timeline */}
+      <section style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        boxShadow: 'var(--shadow)',
+      }}>
+        <h2 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-meta)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+          Critical timeline
+        </h2>
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+          {CRITICAL_TIMELINE.map((t, i) => (
+            <div key={i} style={{
+              flex: '0 0 auto',
+              minWidth: 160,
+              background: 'var(--surface2)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: 10,
+            }}>
+              <Pill tone={t.daysBeforeRenewal <= 0 ? 'danger' : t.daysBeforeRenewal <= 30 ? 'neutral' : 'accent'}>
+                {t.label}
+              </Pill>
+              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-td)', lineHeight: 1.4 }}>{t.action}</div>
+              {t.source && <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-meta)' }}>{t.source}</div>}
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <div style={{ padding: '18px 20px', maxWidth: 1280, margin: '0 auto' }}>
-        {/* Critical timeline */}
-        <section style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 20,
-          boxShadow: 'var(--shadow)',
-        }}>
-          <h2 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-meta)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-            Critical timeline
-          </h2>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-            {CRITICAL_TIMELINE.map((t, i) => (
-              <div key={i} style={{
-                flex: '0 0 auto',
-                minWidth: 160,
-                background: 'var(--surface2)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: 10,
-              }}>
-                <Pill tone={t.daysBeforeRenewal <= 0 ? 'danger' : t.daysBeforeRenewal <= 30 ? 'neutral' : 'accent'}>
-                  {t.label}
-                </Pill>
-                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-td)', lineHeight: 1.4 }}>{t.action}</div>
-                {t.source && <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-meta)' }}>{t.source}</div>}
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Gate cards */}
+      {GATE_ORDER.map(gid => <GateCard key={gid} gate={GATES[gid]} />)}
 
-        {/* Gate cards */}
-        {GATE_ORDER.map(gid => <GateCard key={gid} gate={GATES[gid]} />)}
+      {/* Global closing scenarios index */}
+      <section style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 20,
+        boxShadow: 'var(--shadow)',
+      }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 4 }}>
+          Ten closing scenarios
+        </h2>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          From the Closing Opportunities playbook. Every known outcome has a defined gate path.
+        </p>
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: 'var(--surface2)' }}>
+              <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>#</th>
+              <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scenario</th>
+              <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Outcome</th>
+              <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gate</th>
+              <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Key action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CLOSING_SCENARIOS.map(s => {
+              const gates = Array.isArray(s.gate) ? s.gate : [s.gate]
+              return (
+                <tr key={s.number} style={{ borderBottom: '1px solid var(--border2)' }}>
+                  <td style={{ padding: '8px', color: 'var(--text-meta)' }}>{s.number}</td>
+                  <td style={{ padding: '8px', color: 'var(--text-strong)' }}>{s.name}</td>
+                  <td style={{ padding: '8px' }}>
+                    <Pill tone={s.outcome === 'Closed-Won' || s.outcome === 'Auto-Renewed' ? 'success' : s.outcome === 'Closed-Lost' ? 'danger' : 'neutral'}>
+                      {s.outcome}
+                    </Pill>
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {gates.map(g => (
+                        <a key={g} href={`#${g}`} style={{ textDecoration: 'none' }}>
+                          <Pill tone="accent">{g}</Pill>
+                        </a>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px', color: 'var(--text-td)' }}>{s.keyAction}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </section>
 
-        {/* Global closing scenarios index */}
-        <section style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 12,
-          padding: 16,
-          marginTop: 20,
-          boxShadow: 'var(--shadow)',
-        }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 4 }}>
-            Ten closing scenarios
-          </h2>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-            From the Closing Opportunities playbook. Every known outcome has a defined gate path.
-          </p>
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--surface2)' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>#</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scenario</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Outcome</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gate</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-meta)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Key action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CLOSING_SCENARIOS.map(s => {
-                const gates = Array.isArray(s.gate) ? s.gate : [s.gate]
-                return (
-                  <tr key={s.number} style={{ borderBottom: '1px solid var(--border2)' }}>
-                    <td style={{ padding: '8px', color: 'var(--text-meta)' }}>{s.number}</td>
-                    <td style={{ padding: '8px', color: 'var(--text-strong)' }}>{s.name}</td>
-                    <td style={{ padding: '8px' }}>
-                      <Pill tone={s.outcome === 'Closed-Won' || s.outcome === 'Auto-Renewed' ? 'success' : s.outcome === 'Closed-Lost' ? 'danger' : 'neutral'}>
-                        {s.outcome}
-                      </Pill>
-                    </td>
-                    <td style={{ padding: '8px' }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {gates.map(g => (
-                          <a key={g} href={`#${g}`} style={{ textDecoration: 'none' }}>
-                            <Pill tone="accent">{g}</Pill>
-                          </a>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ padding: '8px', color: 'var(--text-td)' }}>{s.keyAction}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </section>
-
-        <footer style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--text-meta)', textAlign: 'center' }}>
-          Backend source: <code>src/lib/gate-triggers.ts</code> · JSON endpoint: <code>/api/gate-triggers</code>
-        </footer>
-      </div>
+      <footer style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--text-meta)', textAlign: 'center' }}>
+        Backend source: <code>src/lib/gate-triggers.ts</code> · JSON endpoint: <code>/api/gate-triggers</code>
+      </footer>
     </div>
   )
 }
