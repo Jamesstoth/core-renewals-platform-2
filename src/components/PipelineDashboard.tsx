@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import type { Opportunity } from '@/lib/types'
+import type { PipelineKpis } from '@/lib/salesforce-api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,9 +21,12 @@ function formatDate(d: string | null) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface Props { opportunities: Opportunity[] }
+interface Props {
+  opportunities: Opportunity[]
+  liveKpis?:     PipelineKpis | null
+}
 
-export default function PipelineDashboard({ opportunities }: Props) {
+export default function PipelineDashboard({ opportunities, liveKpis }: Props) {
   const [stageFilter,   setStageFilter]   = useState('')
   const [ownerFilter,   setOwnerFilter]   = useState('')
   const [productFilter, setProductFilter] = useState('')
@@ -53,8 +57,11 @@ export default function PipelineDashboard({ opportunities }: Props) {
     return kpiBase.filter(o => (o.probable_outcome || 'Undetermined') === outcomeFilter)
   }, [kpiBase, outcomeFilter])
 
-  // KPIs (independent of outcome selection)
+  // KPIs — prefer live SF aggregates (all active, valid renewals, excluding
+  // Handled_by_BU and 'Sales Integration' owner) over Supabase-derived totals
+  // which are limited to the gate-bucketed subset.
   const kpis = useMemo(() => {
+    if (liveKpis) return liveKpis
     let totalArr = 0, winArr = 0, churnArr = 0, riskArr = 0
     let winCount = 0, churnCount = 0, riskCount = 0
     for (const o of kpiBase) {
@@ -65,7 +72,7 @@ export default function PipelineDashboard({ opportunities }: Props) {
       if (!o.probable_outcome || o.probable_outcome === 'Undetermined') { riskArr += arr; riskCount++ }
     }
     return { totalArr, winArr, winCount, churnArr, churnCount, riskArr, riskCount, total: kpiBase.length }
-  }, [kpiBase])
+  }, [liveKpis, kpiBase])
 
   // Table
   const sorted = useMemo(() => {

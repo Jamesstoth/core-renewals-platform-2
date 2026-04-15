@@ -97,6 +97,72 @@ export async function querySalesforce<
   return runQuery<T>(soql, false)
 }
 
+/**
+ * Aggregate KPI totals for the Pipeline view.
+ *
+ * "Active, valid renewals" per the Trilogy playbook:
+ *   Type = 'Renewal' AND IsClosed = false AND Handled_by_BU__c = false
+ *
+ * Buckets by Probable_Outcome__c — nulls roll into 'Undetermined'.
+ */
+export interface PipelineKpis {
+  totalArr:    number
+  total:       number
+  winArr:      number
+  winCount:    number
+  churnArr:    number
+  churnCount:  number
+  riskArr:     number
+  riskCount:   number
+}
+
+interface OutcomeAgg extends Record<string, unknown> {
+  Probable_Outcome__c: string | null
+  cnt: number
+  total_arr: number | null
+}
+
+// ISR/ERM core-renewals team. Names match Salesforce Owner.Name exactly
+// ('Sebastian Desand' — not 'Destand' which appears in CLAUDE.md).
+const CORE_OWNERS = [
+  'James Quigley',
+  'James Stothard',
+  'Tim Courtenay',
+  'Sebastian Desand',
+  'Fredrik Scheike',
+] as const
+
+export async function fetchPipelineKpis(): Promise<PipelineKpis> {
+  const ownerList = CORE_OWNERS.map(n => `'${n}'`).join(', ')
+  const rows = await querySalesforce<OutcomeAgg>(
+    `SELECT Probable_Outcome__c, COUNT(Id) cnt, SUM(ARR__c) total_arr
+     FROM Opportunity
+     WHERE Type = 'Renewal' AND IsClosed = false
+       AND Handled_by_BU__c = false
+       AND Owner.Name IN (${ownerList})
+     GROUP BY Probable_Outcome__c`
+  )
+
+  const k: PipelineKpis = {
+    totalArr: 0, total: 0,
+    winArr: 0, winCount: 0,
+    churnArr: 0, churnCount: 0,
+    riskArr: 0, riskCount: 0,
+  }
+
+  for (const r of rows) {
+    const arr = r.total_arr ?? 0
+    const cnt = r.cnt ?? 0
+    k.totalArr += arr
+    k.total    += cnt
+    if (r.Probable_Outcome__c === 'Likely to Win')   { k.winArr   += arr; k.winCount   += cnt }
+    else if (r.Probable_Outcome__c === 'Likely to Churn') { k.churnArr += arr; k.churnCount += cnt }
+    else                                                   { k.riskArr  += arr; k.riskCount  += cnt }
+  }
+
+  return k
+}
+
 async function runQuery<T extends Record<string, unknown>>(
   soql: string,
   isRetry: boolean
