@@ -192,13 +192,13 @@ export async function GET() {
 
     if (!apiKey || apiKey === "your-anthropic-api-key") {
       return NextResponse.json(
-        { error: "ANTHROPIC_API_KEY is not configured in Vercel environment variables", ...EMPTY },
+        { error: "ANTHROPIC_API_KEY is not configured", ...EMPTY },
         { status: 500 }
       );
     }
     if (!mcpToken) {
       return NextResponse.json(
-        { error: "SALESFORCE_MCP_TOKEN is not configured in Vercel environment variables", ...EMPTY },
+        { error: "SALESFORCE_MCP_TOKEN is not configured", ...EMPTY },
         { status: 500 }
       );
     }
