@@ -361,6 +361,7 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
             Signals
           </button>
         </div>
+        <Link href="/settings" className="view-toggle-btn" style={{ textDecoration: 'none' }}>Settings</Link>
         <button className="theme-toggle" onClick={() => setDark(d => !d)}>
           {dark ? '☀ Light' : '☾ Dark'}
         </button>
