@@ -6,6 +6,7 @@ import {
   QueueItem,
   QueueStatus,
 } from "@/types/renewals";
+import { scoreSfOpportunity } from "./health-score-adapter";
 
 // ---------------------------------------------------------------------------
 // SOQL Queries
@@ -35,7 +36,10 @@ export const OPPORTUNITIES_QUERY = `
     Health_Score__c,
     AI_Churn_Risk_Category__c,
     Priority_Score__c,
-    Product__c
+    Product__c,
+    Account_Report__c,
+    Opportunity_Report__c,
+    Support_Tickets_Summary__c
   FROM Opportunity
   WHERE IsClosed = false
     AND Type IN ('Renewal', 'Upsell')
@@ -161,6 +165,10 @@ export function sfOpportunityToPortalOpportunity(
   renewalCallLogged: boolean
 ): Opportunity {
   const ownerName = opp.Owner?.Name ?? "Unassigned";
+  // Health score is computed in-app by the engine — SF's Health_Score__c is
+  // null for every open opportunity. Adapter extracts signals from standard
+  // SF fields plus the 3 AI summary fields (Account_Report__c, etc.).
+  const health = scoreSfOpportunity(opp);
   return {
     id: opp.Id,
     accountName: opp.Account?.Name ?? "Unknown Account",
@@ -177,12 +185,15 @@ export function sfOpportunityToPortalOpportunity(
     lastContactDate: lastContactDate ?? opp.LastActivityDate ?? "",
     nextStepOwner: opp.NextStep ?? ownerName,
     productFamily: opp.Product__c ?? null,
-    healthScore: opp.Health_Score__c ?? null,
+    healthScore: Math.round(health.final_score * 10) / 10,
     churnRiskCategory: opp.AI_Churn_Risk_Category__c ?? null,
     renewalCallLogged,
     hasOpenActivity: opp.HasOpenActivity ?? false,
     hasOverdueTask: opp.HasOverdueTask ?? false,
     description: null, // Description is stored directly in Supabase, not on SfOpportunityRecord
+    accountReport: opp.Account_Report__c ?? null,
+    opportunityReport: opp.Opportunity_Report__c ?? null,
+    supportTicketsSummary: opp.Support_Tickets_Summary__c ?? null,
   };
 }
 

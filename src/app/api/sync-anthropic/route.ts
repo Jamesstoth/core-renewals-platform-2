@@ -18,6 +18,8 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import type { SfOpportunityRecord } from "@/types/renewals";
+import { scoreSfOpportunity } from "@/lib/health-score-adapter";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -33,7 +35,8 @@ const OPP_SOQL = `
     StageName, Renewal_Date__c, CloseDate, ARR__c, Amount,
     LastActivityDate, Next_Follow_Up_Date__c, NextStep,
     IsClosed, IsWon, HasOpenActivity, HasOverdueTask,
-    Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c
+    Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c,
+    Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
   FROM Opportunity
   WHERE IsClosed = false AND Type IN ('Renewal', 'Upsell')
   ORDER BY CloseDate ASC
@@ -223,6 +226,7 @@ export async function POST() {
       const rules = evaluate(opp, now);
       const account = opp.Account as { Name?: string } | null;
       const owner = opp.Owner as { Name?: string } | null;
+      const health = scoreSfOpportunity(opp as unknown as SfOpportunityRecord);
 
       return {
         sf_opportunity_id: opp.Id as string,
@@ -242,8 +246,14 @@ export async function POST() {
         is_won: (opp.IsWon as boolean) ?? false,
         has_open_activity: (opp.HasOpenActivity as boolean) ?? false,
         has_overdue_task: (opp.HasOverdueTask as boolean) ?? false,
-        health_score: (opp.Health_Score__c as number) ?? null,
+        health_score: Math.round(health.final_score * 10) / 10,
+        health_band: health.band,
+        health_confidence: health.data_confidence,
+        health_overrides: health.overrides_applied.map((o) => o.rule).join("; ") || null,
         churn_risk_category: (opp.AI_Churn_Risk_Category__c as string) ?? null,
+        account_report: (opp.Account_Report__c as string) ?? null,
+        opportunity_report: (opp.Opportunity_Report__c as string) ?? null,
+        support_tickets_summary: (opp.Support_Tickets_Summary__c as string) ?? null,
         last_activity_date: (opp.LastActivityDate as string) ?? null,
         queue_status: rules.status,
         flag_reason: rules.reason,

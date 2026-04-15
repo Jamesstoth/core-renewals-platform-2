@@ -10,7 +10,8 @@
 
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import type { FilterOptions, QueueItem } from "@/types/renewals";
+import type { FilterOptions, QueueItem, SfOpportunityRecord } from "@/types/renewals";
+import { scoreSfOpportunity } from "@/lib/health-score-adapter";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // allow up to 60s for multiple MCP round-trips
@@ -31,7 +32,8 @@ const OPP_SOQL = `
     StageName, Renewal_Date__c, CloseDate, ARR__c, Amount,
     LastActivityDate, Next_Follow_Up_Date__c, NextStep,
     IsClosed, IsWon, HasOpenActivity, HasOverdueTask,
-    Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c
+    Health_Score__c, AI_Churn_Risk_Category__c, Priority_Score__c, Product__c,
+    Account_Report__c, Opportunity_Report__c, Support_Tickets_Summary__c
   FROM Opportunity
   WHERE IsClosed = false AND Type IN ('Renewal', 'Upsell')
   ORDER BY CloseDate ASC
@@ -282,6 +284,7 @@ export async function GET() {
 
       const account = opp.Account as { Name?: string } | null;
       const owner = opp.Owner as { Name?: string } | null;
+      const health = scoreSfOpportunity(opp as unknown as SfOpportunityRecord);
 
       return {
         opportunity: {
@@ -300,12 +303,15 @@ export async function GET() {
           lastContactDate: rules.lastContact ?? (opp.LastActivityDate as string) ?? "",
           nextStepOwner: (opp.NextStep as string) ?? owner?.Name ?? "Unassigned",
           productFamily: (opp.Product__c as string) ?? null,
-          healthScore: (opp.Health_Score__c as number) ?? null,
+          healthScore: Math.round(health.final_score * 10) / 10,
           churnRiskCategory: (opp.AI_Churn_Risk_Category__c as string) ?? null,
           renewalCallLogged: rc.length > 0,
           hasOpenActivity: (opp.HasOpenActivity as boolean) ?? false,
           hasOverdueTask: (opp.HasOverdueTask as boolean) ?? false,
           description: (opp.Description as string) ?? null,
+          accountReport: (opp.Account_Report__c as string) ?? null,
+          opportunityReport: (opp.Opportunity_Report__c as string) ?? null,
+          supportTicketsSummary: (opp.Support_Tickets_Summary__c as string) ?? null,
         },
         activityHistory,
         aiSuggestions: {
