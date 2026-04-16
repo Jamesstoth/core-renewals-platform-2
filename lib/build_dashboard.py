@@ -48,6 +48,14 @@ if args.activities and os.path.exists(args.activities):
             if key in raw_acts and isinstance(raw_acts[key], list):
                 activity_records = raw_acts[key]; break
 
+# ── load gate evaluations ────────────────────────────────────────────────────
+GATE_EVAL_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "gate_evaluations.json")
+gate_eval_data = {"summary": {}, "opportunities": []}
+if os.path.exists(GATE_EVAL_FILE):
+    with open(GATE_EVAL_FILE) as f:
+        gate_eval_data = json.load(f)
+    print(f"  → Loaded gate evaluations: {len(gate_eval_data.get('opportunities', []))} opps evaluated")
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 def days_until(d_str):
     if not d_str: return None
@@ -293,6 +301,7 @@ activities = [a for a in activities if filter_calls(a)]
 
 # ── tab definitions ───────────────────────────────────────────────────────────
 TABS = [
+    ("gate_eval",   "Gate Evaluation: 7-Gate Framework",    None),
     ("gate1",       "Gate 1 Non-HVO: 140D No Engagement", filter_gate1),
     ("gate2",       "Gate 2 Non-HVO: 90D Quote Not Sent",  filter_gate2),
     ("gate3",       "Gate 3: 30D Not Finalizing",          filter_gate3),
@@ -326,13 +335,23 @@ def _load_tab_file(path):
 
 tab_opps = {}
 for tid, _, fn in TABS:
-    if tid == "calls":
+    if tid == "gate_eval":
+        # Gate evaluation tab: populated from gate_evaluations.json, not SF data
+        tab_opps[tid] = [e for e in gate_eval_data.get("opportunities", [])
+                         if not e.get("is_closed", False)]
+    elif tid == "calls":
         tab_opps[tid] = [a for a in activities if fn(a)]
     elif tid in PER_TAB_FILES and os.path.exists(PER_TAB_FILES[tid]):
         tab_opps[tid] = _load_tab_file(PER_TAB_FILES[tid])
     else:
         pool = gate4_pool if tid in ("gate4", "past_due") else opps
         tab_opps[tid] = [o for o in pool if fn(o)]
+
+# Gate eval summary stats (used by KPI card and gate card)
+ge_summary = gate_eval_data.get("summary", {})
+ge_risk = ge_summary.get("by_risk_level", {})
+ge_violations = ge_summary.get("total_violations", 0)
+ge_arr_at_risk = ge_summary.get("total_arr_at_risk", 0)
 
 # ── per-tab table builders ────────────────────────────────────────────────────
 
@@ -485,6 +504,110 @@ def build_table_calls(tab_id, acts):
              '<th>Call Result</th><th>Contact</th><th>Opportunity / Account</th></tr>')
     return thead, "\n".join(rows)
 
+# ── gate evaluation table builder ─────────────────────────────────────────────
+
+RISK_COLORS = {
+    "critical": "#dc2626",
+    "high":     "#ea580c",
+    "medium":   "#f59e0b",
+    "low":      "#22c55e",
+}
+
+GATE_NAMES_SHORT = {
+    0: "G0 Data", 1: "G1 Outreach", 2: "G2 Discovery",
+    3: "G3 Proposal", 4: "G4 Negotiate", 5: "G5 Close", 6: "G6 QC",
+}
+
+def risk_badge(risk):
+    c = RISK_COLORS.get(risk, "#94a3b8")
+    return f'<span class="badge" style="background:{c}">{risk.title()}</span>'
+
+def gate_position_badge(gate_num):
+    colors = {
+        0: "#3b82f6", 1: "#0d9488", 2: "#7c3aed",
+        3: "#d97706", 4: "#ea580c", 5: "#dc2626", 6: "#64748b",
+    }
+    c = colors.get(gate_num, "#94a3b8")
+    label = GATE_NAMES_SHORT.get(gate_num, f"G{gate_num}")
+    return f'<span class="badge" style="background:{c}">{label}</span>'
+
+def violation_pills(ev):
+    gr = ev.get("gate_results", {})
+    pills = []
+    for gn in range(7):
+        r = gr.get(str(gn), gr.get(gn, {}))
+        if r.get("status") == "violation":
+            pills.append(f'<span style="display:inline-block;padding:1px 5px;border-radius:3px;'
+                         f'font-size:10px;background:#fee2e2;color:#991b1b;margin-right:2px">'
+                         f'G{gn}</span>')
+    return "".join(pills) if pills else '<span style="color:#94a3b8">—</span>'
+
+def scenario_cell(sc):
+    if not sc or not sc.get("scenario"):
+        return '<span style="color:#94a3b8">—</span>'
+    num = sc["scenario"]
+    name = sc.get("name", "")
+    conf = sc.get("confidence", "low")
+    conf_colors = {"confirmed": "#22c55e", "high": "#f59e0b", "medium": "#94a3b8", "low": "#cbd5e1"}
+    cc = conf_colors.get(conf, "#cbd5e1")
+    return (f'<span title="{name} ({conf})" style="cursor:help">'
+            f'#{num} <small style="color:{cc}">●</small></span>')
+
+def action_cell(actions):
+    if not actions:
+        return '<span style="color:#94a3b8">—</span>'
+    top = actions[0]
+    act_text = top.get("action", "")
+    if len(act_text) > 55:
+        act_text = act_text[:55] + "…"
+    return f'<span title="{top.get("action","")}" style="cursor:help">{act_text}</span>'
+
+def build_table_gate_eval(tab_id, tab_opps_list):
+    """Gate Evaluation: Opp | Owner | ARR | Renewal | Gate | Risk | Violations | Scenario | Action"""
+    rows = []
+    for ev in tab_opps_list:
+        arr_val = ev.get("current_arr") or ev.get("arr") or 0
+        dtr = ev.get("days_to_renewal")
+        if dtr is not None and dtr < 0:
+            dtr_str = f'<span style="color:#dc2626;font-weight:600">{abs(dtr)}d late</span>'
+        elif dtr is not None:
+            dtr_str = f'{dtr}d'
+        else:
+            dtr_str = "—"
+
+        name_short = ev.get("opp_name", "")
+        if len(name_short) > 40:
+            name_short = name_short[:40] + "…"
+        acct = ev.get("account_name", "")
+        opp_id = ev.get("opp_id", "")
+        link = f'https://trilogy-sales.lightning.force.com/lightning/r/Opportunity/{opp_id}/view' if opp_id else "#"
+
+        owner = ev.get("owner", "—")
+        fname = owner.split()[0] if owner not in ("—", "", "Unknown") else owner
+
+        rows.append(
+            f'<tr data-owner="{owner}" data-stage="{ev.get("stage","")}" '
+            f'data-risk="{ev.get("overall_risk","")}" '
+            f'data-search="{(ev.get("opp_name","") + owner + acct).lower()}">'
+            f'<td><a href="{link}" target="_blank" style="color:var(--link)"'
+            f' title="{ev.get("opp_name","")}">{name_short}</a>'
+            f'<br><small style="color:var(--text-meta)">{acct}</small></td>'
+            f'<td>{fname}</td>'
+            f'<td style="text-align:right">{fmt_arr(arr_val)}</td>'
+            f'<td>{dtr_str}</td>'
+            f'<td>{gate_position_badge(ev.get("current_gate", 0))}</td>'
+            f'<td>{risk_badge(ev.get("overall_risk", "low"))}</td>'
+            f'<td>{violation_pills(ev)}</td>'
+            f'<td>{scenario_cell(ev.get("scenario_prediction"))}</td>'
+            f'<td style="max-width:220px;font-size:12px">{action_cell(ev.get("recommended_actions",[]))}</td>'
+            f'</tr>'
+        )
+    thead = ('<tr><th>Opportunity / Account</th><th>Owner</th><th>ARR</th>'
+             '<th>Renewal</th><th>Gate</th><th>Risk</th>'
+             '<th>Violations</th><th>Scenario</th><th>Next Action</th></tr>')
+    return thead, "\n".join(rows)
+
+
 TABLE_BUILDERS = {
     "gate1":       build_table_gate1_style,
     "gate2":       build_table_gate1_style,
@@ -493,6 +616,7 @@ TABLE_BUILDERS = {
     "not_touched": build_table_not_touched,
     "past_due":    build_table_past_due,
     "calls":       build_table_calls,
+    "gate_eval":   build_table_gate_eval,
 }
 
 # ── render each tab section ───────────────────────────────────────────────────
@@ -501,6 +625,7 @@ def render_tab_section(tab_id, tab_label, tab_opps_list):
     thead, tbody = builder(tab_id, tab_opps_list)
     count = len(tab_opps_list)
     is_calls = tab_id == "calls"
+    is_gate_eval = tab_id == "gate_eval"
 
     if is_calls:
         stat_pills = f'<span class="stat-pill">{count} calls</span>'
@@ -510,6 +635,22 @@ def render_tab_section(tab_id, tab_label, tab_opps_list):
         stage_opts  = "".join(f'<option value="{v}">{v}</option>' for v in unique_results)
         stage_label = "All Results"
         empty_text  = "No call activity data — run ↻ Update to load."
+    elif is_gate_eval:
+        total_arr = sum(e.get("current_arr") or e.get("arr") or 0 for e in tab_opps_list)
+        crit_count = sum(1 for e in tab_opps_list if e.get("overall_risk") == "critical")
+        high_count = sum(1 for e in tab_opps_list if e.get("overall_risk") == "high")
+        viol_count = sum(e.get("violation_count", 0) for e in tab_opps_list)
+        stat_pills = (f'<span class="stat-pill">{count} opportunities</span>'
+                      f'<span class="stat-pill">{fmt_arr(total_arr)} ARR</span>'
+                      f'<span class="stat-pill" style="background:#fee2e2;color:#991b1b">{viol_count} violations</span>'
+                      f'<span class="stat-pill" style="background:#fef3c7;color:#92400e">{crit_count} critical · {high_count} high</span>')
+        unique_owners = sorted({e.get("owner", "—") for e in tab_opps_list})
+        unique_risks  = sorted({e.get("overall_risk", "low") for e in tab_opps_list},
+                               key=lambda r: ["critical","high","medium","low"].index(r) if r in ["critical","high","medium","low"] else 99)
+        owner_opts  = "".join(f'<option value="{v}">{v}</option>' for v in unique_owners)
+        stage_opts  = "".join(f'<option value="{v}">{v.title()}</option>' for v in unique_risks)
+        stage_label = "All Risk Levels"
+        empty_text  = "No gate evaluations — run ↻ Update to generate."
     else:
         total_arr  = sum(o["arr"] or o["current_arr"] for o in tab_opps_list)
         stat_pills = f'<span class="stat-pill">{count} opportunities</span><span class="stat-pill">{fmt_arr(total_arr)} ARR</span>'
@@ -522,6 +663,9 @@ def render_tab_section(tab_id, tab_label, tab_opps_list):
 
     owner_opts_html = f'<option value="">All Owners</option>{owner_opts}'
     stage_opts_html = f'<option value="">{stage_label}</option>{stage_opts}'
+
+    # Gate eval uses data-risk for the stage filter column
+    filter_attr = "risk" if is_gate_eval else "stage"
 
     empty_msg = (f'<tr><td colspan="9" style="text-align:center;color:#64748b;padding:32px">'
                  f'{empty_text}</td></tr>'
@@ -539,7 +683,7 @@ def render_tab_section(tab_id, tab_label, tab_opps_list):
       <select class="tab-owner-filter" onchange="filterTabTable('{tab_id}')">
         {owner_opts_html}
       </select>
-      <select class="tab-stage-filter" onchange="filterTabTable('{tab_id}')">
+      <select class="tab-stage-filter" data-filter-attr="{filter_attr}" onchange="filterTabTable('{tab_id}')">
         {stage_opts_html}
       </select>
       <span class="count-badge" id="count-{tab_id}">{count} rows</span>
@@ -560,6 +704,7 @@ tab_sections_html = "\n".join(
 
 # ── KPI row ───────────────────────────────────────────────────────────────────
 TAB_COLORS = {
+    "gate_eval":   "#7c3aed",
     "gate1":       "#0d9488",
     "gate2":       "#d97706",
     "gate3":       "#ea580c",
@@ -579,7 +724,21 @@ KPI_ITEMS = [
     ("calls",       "Calls",       "Last 14 Days"),
 ]
 
-kpi_html = "\n".join(
+# Gate eval KPI card (separate — uses violation count instead of opp count)
+ge_critical = ge_risk.get("critical", 0)
+ge_high = ge_risk.get("high", 0)
+gate_eval_kpi = (
+    f'<div class="kpi-card" onclick="openTab(\'gate_eval\')" role="button" tabindex="0" '
+    f'onkeydown="if(event.key===\'Enter\')openTab(\'gate_eval\')">'
+    f'<div class="kpi-sub">7-Gate Framework</div>'
+    f'<div class="kpi-count" style="color:#7c3aed">{ge_violations}</div>'
+    f'<div class="kpi-title">Violations</div>'
+    f'<div style="font-size:11px;color:var(--text-meta);margin-top:2px">'
+    f'{ge_critical} critical · {ge_high} high · {fmt_arr(ge_arr_at_risk)} at risk</div>'
+    f'</div>'
+)
+
+kpi_html = gate_eval_kpi + "\n" + "\n".join(
     f'<div class="kpi-card" onclick="openTab(\'{tid}\')" role="button" tabindex="0" '
     f'onkeydown="if(event.key===\'Enter\')openTab(\'{tid}\')">'
     f'<div class="kpi-sub">{sub}</div>'
@@ -664,6 +823,69 @@ gate_cards_html = "\n".join(
     render_gate_card(tid, label, tab_opps[tid])
     for tid, label in GATE_CARD_DEFS
 )
+
+# ── gate evaluation summary card (spans full width above the gate grid) ───────
+ge_by_gate = ge_summary.get("by_current_gate", {})
+ge_by_owner = ge_summary.get("by_owner", {})
+ge_eval_date = ge_summary.get("evaluated_at", "—")
+
+def _ge_gate_pills():
+    pills = []
+    gate_colors = {0:"#3b82f6", 1:"#0d9488", 2:"#7c3aed", 3:"#d97706", 4:"#ea580c", 5:"#dc2626", 6:"#64748b"}
+    for gn in range(7):
+        cnt = ge_by_gate.get(f"gate_{gn}", 0)
+        if cnt > 0:
+            c = gate_colors.get(gn, "#94a3b8")
+            pills.append(f'<span style="display:inline-block;padding:2px 8px;border-radius:4px;'
+                         f'font-size:12px;background:{c}20;color:{c};margin-right:4px;font-weight:500">'
+                         f'G{gn}: {cnt}</span>')
+    return "".join(pills) if pills else '<span style="color:#94a3b8">No evaluations</span>'
+
+def _ge_owner_rows():
+    rows = []
+    for owner, stats in sorted(ge_by_owner.items(), key=lambda x: -x[1].get("violations", 0)):
+        v = stats.get("violations", 0)
+        cr = stats.get("critical", 0)
+        t = stats.get("total", 0)
+        fname = owner.split()[0] if owner not in ("—","","Unknown") else owner
+        v_color = "#dc2626" if v > 5 else "#ea580c" if v > 2 else "#64748b"
+        rows.append(f'<tr><td style="font-weight:500">{fname}</td>'
+                    f'<td style="text-align:center">{t}</td>'
+                    f'<td style="text-align:center;color:{v_color};font-weight:600">{v}</td>'
+                    f'<td style="text-align:center;color:#dc2626">{cr if cr > 0 else "—"}</td></tr>')
+    return "".join(rows)
+
+gate_eval_card_html = f'''<div class="gate-card" style="grid-column: 1 / -1">
+  <div class="gate-card-hdr" style="border-top:3px solid #7c3aed">
+    <div>
+      <div class="gate-card-title">7-Gate Evaluation Framework</div>
+      <div class="gate-card-meta">{len(tab_opps["gate_eval"])} open opps evaluated &nbsp;·&nbsp; {ge_violations} violations &nbsp;·&nbsp; {fmt_arr(ge_arr_at_risk)} ARR at risk &nbsp;·&nbsp; {ge_eval_date}</div>
+    </div>
+    <button class="view-all-btn" onclick="openTab('gate_eval')">View All →</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px 16px">
+    <div>
+      <div style="font-size:12px;color:var(--text-faint);font-weight:500;margin-bottom:6px">DISTRIBUTION BY GATE</div>
+      <div>{_ge_gate_pills()}</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-faint);font-weight:500;margin-bottom:4px">RISK BREAKDOWN</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="font-size:13px"><span style="color:#dc2626;font-weight:600">{ge_risk.get("critical",0)}</span> critical</span>
+        <span style="font-size:13px"><span style="color:#ea580c;font-weight:600">{ge_risk.get("high",0)}</span> high</span>
+        <span style="font-size:13px"><span style="color:#f59e0b;font-weight:600">{ge_risk.get("medium",0)}</span> medium</span>
+        <span style="font-size:13px"><span style="color:#22c55e;font-weight:600">{ge_risk.get("low",0)}</span> low</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--text-faint);font-weight:500;margin-bottom:4px">BY OWNER</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="color:var(--text-meta)"><th style="text-align:left;padding:2px 4px">Owner</th><th style="text-align:center;padding:2px 4px">Opps</th><th style="text-align:center;padding:2px 4px">Violations</th><th style="text-align:center;padding:2px 4px">Critical</th></tr></thead>
+        <tbody>{_ge_owner_rows()}</tbody>
+      </table>
+    </div>
+  </div>
+</div>'''
+
+gate_cards_html = gate_eval_card_html + "\n" + gate_cards_html
 
 tab_labels_js = "{" + ", ".join(f'"{tid}": "{tlabel}"' for tid, tlabel, _ in TABS) + "}"
 
@@ -904,15 +1126,18 @@ function filterTabTable(tabId) {{
   if (!section) return;
   const q     = section.querySelector('.tab-search').value.toLowerCase();
   const owner = section.querySelector('.tab-owner-filter').value;
-  const stage = section.querySelector('.tab-stage-filter').value;
+  const stageSelect = section.querySelector('.tab-stage-filter');
+  const stage = stageSelect.value;
+  const filterAttr = stageSelect.dataset.filterAttr || 'stage';
   const rows  = section.querySelectorAll('tbody tr');
   let visible = 0;
   rows.forEach(row => {{
     if (!row.dataset.search) return;
+    const stageVal = row.dataset[filterAttr] || '';
     const match =
       (!q     || row.dataset.search.includes(q)) &&
       (!owner || row.dataset.owner === owner) &&
-      (!stage || row.dataset.stage === stage);
+      (!stage || stageVal === stage);
     row.classList.toggle('hidden', !match);
     if (match) visible++;
   }});

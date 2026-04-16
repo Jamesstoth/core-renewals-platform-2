@@ -110,11 +110,22 @@ interface SfNameRef {
   attributes?: { type: string; url: string };
 }
 
+/**
+ * Account relationship shape when traversed from Opportunity.
+ * `Account_Report__c` and `Support_Tickets_Summary__c` live on Account,
+ * not Opportunity, so SOQL must select them as `Account.<field>` and
+ * consumers read them nested.
+ */
+export interface SfAccountRef extends SfNameRef {
+  Account_Report__c: string | null;
+  Support_Tickets_Summary__c: string | null;
+}
+
 export interface SfOpportunityRecord {
   Id: string;
   Name: string;
   AccountId: string;
-  Account: SfNameRef | null;
+  Account: SfAccountRef | null;
   OwnerId: string;
   Owner: SfNameRef | null;
   StageName: string;
@@ -133,9 +144,7 @@ export interface SfOpportunityRecord {
   AI_Churn_Risk_Category__c: string | null;
   Priority_Score__c: number | null;
   Product__c: string | null;
-  Account_Report__c: string | null;
   Opportunity_Report__c: string | null;
-  Support_Tickets_Summary__c: string | null;
 }
 
 export interface SfTaskRecord {

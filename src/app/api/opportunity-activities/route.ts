@@ -2,7 +2,7 @@
  * GET /api/opportunity-activities?id=006...
  *
  * Fetches activity history (Tasks + Events) for a single opportunity
- * directly from Salesforce via jsforce. Called on-demand when a rep
+ * directly from the Salesforce REST API. Called on-demand when a rep
  * opens an opportunity detail page.
  */
 

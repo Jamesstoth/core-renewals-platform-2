@@ -91,7 +91,7 @@ GitHub Actions:
 
 ISR: James Quigley, James Stothard, Fredrik Scheike
 SDR/SalesOps: Venus Laney, Alvy Gordo, Najeeha Humayun, Ana Roman
-ERMs: Tim Courtenay, Sebastian Destand
+ERMs: Tim Courtenay, Sebastian Desand
 VPs: David Morris, Tim Courtenay
 SVP: Dmitry Bakaev
 

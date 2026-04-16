@@ -1,15 +1,19 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, useMemo, useCallback } from 'react'
-import type { Opportunity, Activity, LastRefresh, TabId } from '@/lib/types'
+import type { Opportunity, LastRefresh, TabId } from '@/lib/types'
+import type { PipelineKpis, PipelineOpportunity } from '@/lib/salesforce-api'
 import PipelineDashboard from './PipelineDashboard'
 import WorkflowQueue from './WorkflowQueue'
+import { WorkflowSignalsView } from './SignalViews'
+import GatesFramework from './GatesFramework'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const SF_BASE = 'https://trilogy-sales.lightning.force.com/lightning/r/Opportunity'
+
 function oppLink(id: string, name: string) {
-  return <Link href={`/opportunity/${id}`}>{name}</Link>
+  return <a href={`${SF_BASE}/${id}/view`} target="_blank" rel="noreferrer">{name}</a>
 }
 
 function fmt(val: number | null, prefix = '') {
@@ -75,7 +79,6 @@ const TABS: TabDef[] = [
   { id: 'gate4',       label: 'Gate 4',      color: '#dc2626', description: 'Past Due — Not Closed', filter: o => o.in_gate4 },
   { id: 'not_touched', label: 'Not Touched', color: '#8b5cf6', description: 'No Activity 7+ Days',   filter: o => o.in_not_touched },
   { id: 'past_due',    label: 'Past Due',    color: '#dc2626', description: 'Renewal Date Passed',   filter: o => o.in_past_due },
-  { id: 'calls',       label: 'Calls',       color: '#22c55e', description: 'Recent Call Activity',  filter: () => false },
 ]
 
 // ── Opportunity table columns ─────────────────────────────────────────────────
@@ -106,31 +109,13 @@ function OppRow({ opp }: { opp: Opportunity }) {
   )
 }
 
-// ── Activity table ────────────────────────────────────────────────────────────
-
-function ActivityRow({ act }: { act: Activity }) {
-  return (
-    <tr>
-      <td>{act.owner_name ?? '—'}</td>
-      <td>{act.what_name ?? act.who_name ?? '—'}</td>
-      <td>{act.subject ?? '—'}</td>
-      <td>{act.call_disposition ?? '—'}</td>
-      <td>{formatDate(act.activity_date)}</td>
-      <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {act.description ?? '—'}
-      </td>
-    </tr>
-  )
-}
-
 // ── Full tab view ─────────────────────────────────────────────────────────────
 
 function TabView({
-  tab, opps, activities, onBack,
+  tab, opps, onBack,
 }: {
   tab: TabDef
   opps: Opportunity[]
-  activities: Activity[]
   onBack: () => void
 }) {
   const [search, setSearch] = useState('')
@@ -142,7 +127,6 @@ function TabView({
   }, [opps])
 
   const filtered = useMemo(() => {
-    if (tab.id === 'calls') return activities
     return opps.filter(o => {
       if (ownerFilter && o.owner_name !== ownerFilter) return false
       if (search) {
@@ -153,11 +137,11 @@ function TabView({
       }
       return true
     })
-  }, [tab, opps, activities, search, ownerFilter])
+  }, [opps, search, ownerFilter])
 
   const totalArr = useMemo(() =>
-    tab.id === 'calls' ? 0 : (filtered as Opportunity[]).reduce((s, o) => s + (o.arr ?? 0), 0),
-  [tab, filtered])
+    filtered.reduce((s, o) => s + (o.arr ?? 0), 0),
+  [filtered])
 
   return (
     <>
@@ -172,52 +156,36 @@ function TabView({
         <div className="tab-header">
           <div className="tab-stats">
             <span className="stat-pill">{filtered.length} records</span>
-            {tab.id !== 'calls' && totalArr > 0 && (
+            {totalArr > 0 && (
               <span className="stat-pill">ARR {fmt(totalArr, '$')}</span>
             )}
           </div>
-          {tab.id !== 'calls' && (
-            <div className="tab-filters">
-              <input
-                placeholder="Search name / account / owner…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              <select value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
-                <option value="">All owners</option>
-                {owners.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-          )}
+          <div className="tab-filters">
+            <input
+              placeholder="Search name / account / owner…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
+              <option value="">All owners</option>
+              {owners.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="table-wrap">
-          {tab.id === 'calls' ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>Owner</th><th>Account</th><th>Subject</th>
-                  <th>Disposition</th><th>Date</th><th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(filtered as Activity[]).map(a => <ActivityRow key={a.id} act={a} />)}
-              </tbody>
-            </table>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Opportunity</th><th>Owner</th><th>Account</th>
-                  <th>Stage</th><th>Renewal</th><th>ARR</th>
-                  <th>Last Activity</th><th>Next Follow-Up</th><th>Next Step</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(filtered as Opportunity[]).map(o => <OppRow key={o.id} opp={o} />)}
-              </tbody>
-            </table>
-          )}
+          <table>
+            <thead>
+              <tr>
+                <th>Opportunity</th><th>Owner</th><th>Account</th>
+                <th>Stage</th><th>Renewal</th><th>ARR</th>
+                <th>Last Activity</th><th>Next Follow-Up</th><th>Next Step</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(o => <OppRow key={o.id} opp={o} />)}
+            </tbody>
+          </table>
         </div>
       </div>
     </>
@@ -271,9 +239,8 @@ function GateCard({ tab, opps, onViewAll }: { tab: TabDef; opps: Opportunity[]; 
 function KpiCard({ tab, count, onClick }: { tab: TabDef; count: number; onClick: () => void }) {
   return (
     <div className="kpi-card" onClick={onClick}>
-      <div className="kpi-sub">{tab.id === 'calls' ? 'Recent' : 'Gate'}</div>
+      <div className="kpi-title" style={{ fontSize: 22, fontWeight: 700, color: tab.color }}>{tab.label}</div>
       <div className="kpi-count" style={{ color: tab.color }}>{count}</div>
-      <div className="kpi-title">{tab.label}</div>
     </div>
   )
 }
@@ -282,13 +249,14 @@ function KpiCard({ tab, count, onClick }: { tab: TabDef; count: number; onClick:
 
 interface Props {
   opportunities: Opportunity[]
-  activities:    Activity[]
+  pipelineOpps:  PipelineOpportunity[]
   lastRefresh:   LastRefresh | null
+  pipelineKpis:  PipelineKpis | null
 }
 
-export default function Dashboard({ opportunities, activities, lastRefresh }: Props) {
+export default function Dashboard({ opportunities, pipelineOpps, lastRefresh, pipelineKpis }: Props) {
   const [activeTab, setActiveTab] = useState<TabId | null>(null)
-  const [view, setView] = useState<'pipeline' | 'gates' | 'signals'>('pipeline')
+  const [view, setView] = useState<'pipeline' | 'gates' | 'signals' | 'workflow' | 'framework'>('pipeline')
   const [dark, setDark] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
@@ -296,11 +264,7 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
   const tabOpps = useMemo(() => {
     const map: Record<string, Opportunity[]> = {}
     for (const tab of TABS) {
-      if (tab.id === 'calls') {
-        map[tab.id] = []
-      } else {
-        map[tab.id] = opportunities.filter(tab.filter)
-      }
+      map[tab.id] = opportunities.filter(tab.filter)
     }
     return map
   }, [opportunities])
@@ -352,13 +316,21 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
             className={`view-toggle-btn${view === 'gates' ? ' active' : ''}`}
             onClick={() => { setView('gates'); setActiveTab(null) }}
           >
-            Accountability
+            Gates
+          </button>
+        </div>
+        <div className="view-toggle" aria-label="Reports">
+          <button
+            className={`view-toggle-btn${view === 'workflow' ? ' active' : ''}`}
+            onClick={() => { setView('workflow'); setActiveTab(null) }}
+          >
+            Workflow
           </button>
           <button
-            className={`view-toggle-btn${view === 'signals' ? ' active' : ''}`}
-            onClick={() => { setView('signals'); setActiveTab(null) }}
+            className={`view-toggle-btn${view === 'framework' ? ' active' : ''}`}
+            onClick={() => { setView('framework'); setActiveTab(null) }}
           >
-            Signals
+            Triggers
           </button>
         </div>
         <button className="theme-toggle" onClick={() => setDark(d => !d)}>
@@ -371,7 +343,7 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
 
       {/* ── Pipeline view ── */}
       {!activeTab && view === 'pipeline' && (
-        <PipelineDashboard opportunities={opportunities} />
+        <PipelineDashboard opportunities={pipelineOpps} liveKpis={pipelineKpis} />
       )}
 
       {/* ── Signals view ── */}
@@ -379,12 +351,21 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
         <WorkflowQueue />
       )}
 
+      {/* ── Workflow Signals view ── */}
+      {view === 'workflow' && (
+        <WorkflowSignalsView opportunities={opportunities} />
+      )}
+
+      {/* ── Gates framework view ── */}
+      {view === 'framework' && (
+        <GatesFramework />
+      )}
+
       {/* ── Accountability view: gate detail ── */}
       {activeTabDef && view === 'gates' && (
         <TabView
           tab={activeTabDef}
           opps={tabOpps[activeTabDef.id] ?? []}
-          activities={activities}
           onBack={() => setActiveTab(null)}
         />
       )}
@@ -398,7 +379,7 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
                 <KpiCard
                   key={tab.id}
                   tab={tab}
-                  count={tab.id === 'calls' ? activities.length : (tabOpps[tab.id]?.length ?? 0)}
+                  count={tabOpps[tab.id]?.length ?? 0}
                   onClick={() => setActiveTab(tab.id)}
                 />
               ))}
@@ -407,7 +388,7 @@ export default function Dashboard({ opportunities, activities, lastRefresh }: Pr
 
           <div className="dashboard-body">
             <div className="gate-grid">
-              {TABS.filter(t => t.id !== 'calls').map(tab => (
+              {TABS.map(tab => (
                 <GateCard
                   key={tab.id}
                   tab={tab}

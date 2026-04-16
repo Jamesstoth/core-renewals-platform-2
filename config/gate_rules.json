@@ -1,0 +1,179 @@
+{
+  "_version": "1.0",
+  "_description": "7-gate renewal lifecycle framework. Source of truth for lib/evaluate_gates.py. Derived from 17 Core Renewals playbooks (April 2026).",
+  "_note": "All day counts are relative to Renewal_Date__c. Negative = before renewal, positive = after.",
+
+  "gates": {
+    "gate_0": {
+      "name": "Data readiness",
+      "description": "Opportunity data is complete and accurate before outreach begins.",
+      "window": { "opens_days": -180, "closes_days": -120 },
+      "sf_stages_expected": ["Pending"],
+      "required_fields": [
+        "CurrentContractHasAutoRenewalClause__c",
+        "Current_ARR__c",
+        "Current_Success_Level__c",
+        "Product__c",
+        "Renewal_Date__c"
+      ],
+      "pass_criteria": {
+        "all_required_fields_populated": true,
+        "ar_clause_not_blank": true,
+        "current_arr_gt_zero": true
+      },
+      "violation": {
+        "trigger": "Required fields remain blank after closes_days deadline",
+        "severity": "warning",
+        "escalation": "VP notified — outreach cannot begin with incomplete data"
+      }
+    },
+
+    "gate_1": {
+      "name": "Outreach activation",
+      "description": "Customer has been contacted and has responded. Stage should advance beyond Pending/Outreach.",
+      "window": { "opens_days": -180, "closes_days": -90 },
+      "sf_stages_expected": ["Outreach", "Engaged"],
+      "pass_criteria": {
+        "stage_not_in": ["Pending"],
+        "has_activity_or_engagement": true,
+        "comment": "Pass when stage >= Engaged, OR LastActivityDate is within the gate window, OR a completed task exists in activity data."
+      },
+      "violation": {
+        "trigger": "Stage is still Pending or Outreach with no activity after closes_days",
+        "severity": "escalation",
+        "escalation": "VP notified. For AR accounts: begin AR preparation track. For non-AR: plan T-5 final warning."
+      },
+      "hvo_exception": "HVO accounts skip automated outreach. ISR/ERM initiates manual outreach at T-120."
+    },
+
+    "gate_2": {
+      "name": "Discovery and needs assessment",
+      "description": "Discovery call completed, pain points documented, account categorised. Aligns with AR 60-day notice deadline.",
+      "window": { "opens_days": -90, "closes_days": -60 },
+      "sf_stages_expected": ["Engaged", "Proposal"],
+      "pass_criteria": {
+        "stage_advanced_past": "Outreach",
+        "has_recent_activity": true,
+        "probable_outcome_set": true,
+        "comment": "Pass when Probable_Outcome__c is not null/Undetermined AND stage >= Engaged AND there is activity within the window."
+      },
+      "violation": {
+        "trigger": "No discovery evidence by T-60. This is also the AR notice deadline.",
+        "severity": "critical",
+        "escalation": "Gate violation date populated. VP notified. For AR accounts: notice period has expired — AR is enforceable from this point.",
+        "sf_field": "Gate_3_Violation_Date__c"
+      },
+      "ar_notice_deadline": {
+        "days": -60,
+        "comment": "Standard 60-day AR clause. After this date, customer cannot cancel if AR clause exists."
+      }
+    },
+
+    "gate_3": {
+      "name": "Proposal and pricing",
+      "description": "Quote created, approved, and sent to customer.",
+      "window": { "opens_days": -60, "closes_days": -30 },
+      "sf_stages_expected": ["Proposal", "Quote Follow Up"],
+      "pass_criteria": {
+        "stage_in": ["Proposal", "Quote Follow Up", "Finalizing"],
+        "comment": "Pass when stage indicates a quote has been sent (Proposal or beyond)."
+      },
+      "violation": {
+        "trigger": "No quote sent by T-30. AR invoice auto-fires for eligible accounts.",
+        "severity": "critical",
+        "escalation": "AR invoice fires automatically at T-30 if: AR clause exists, no signed quote, opp still open, opp not in Finalizing, no formal cancellation, no approved exception.",
+        "ar_auto_invoice_days": -30
+      }
+    },
+
+    "gate_4": {
+      "name": "Negotiation and follow-up",
+      "description": "Customer has received quote and is progressing toward signature or disposition.",
+      "window": { "opens_days": -30, "closes_days": -7 },
+      "sf_stages_expected": ["Quote Follow Up", "Finalizing"],
+      "pass_criteria": {
+        "stage_in": ["Finalizing", "Closed Won", "Closed Lost"],
+        "comment": "Pass when opportunity has reached Finalizing or is closed."
+      },
+      "violation": {
+        "trigger": "No signed quote or commitment by T-7.",
+        "severity": "critical",
+        "escalation": "Execute AR at T-7 if clause exists. For non-AR unresponsive: Closed-Lost at T+0.",
+        "sf_field": "Gate_4_Violation_Date__c",
+        "final_warning_days": -5,
+        "final_warning_note": "Send T-5 business day warning for non-AR unresponsive customers (Scenario #9)."
+      }
+    },
+
+    "gate_5": {
+      "name": "Close execution",
+      "description": "Opportunity is closed (Won, Lost, or Won't Process) with all required artifacts.",
+      "window": { "opens_days": -7, "closes_days": 0 },
+      "sf_stages_expected": ["Finalizing", "Closed Won", "Closed Lost", "Won't Process"],
+      "pass_criteria": {
+        "is_closed": true,
+        "comment": "Pass when IsClosed = true."
+      },
+      "violation": {
+        "trigger": "Opportunity not closed by T+0 (renewal date).",
+        "severity": "critical",
+        "escalation": "Immediate VP escalation. No opportunity should remain open past renewal date without approved extension."
+      }
+    },
+
+    "gate_6": {
+      "name": "Post-close QC and feedback",
+      "description": "Closed opportunity passes quality check. Loss reasons validated. Learnings captured.",
+      "window": { "opens_days": 0, "closes_days": 30 },
+      "sf_stages_expected": ["Closed Won", "Closed Lost", "Won't Process"],
+      "pass_criteria": {
+        "is_closed": true,
+        "comment": "Evaluation layer: flag if closed opp has missing Loss Reason (for lost), missing Win Type (for won), or missing description."
+      },
+      "violation": {
+        "trigger": "QC not completed within 5 business days of close.",
+        "severity": "warning",
+        "escalation": "Escalate to VP for QC review."
+      }
+    }
+  },
+
+  "stage_order": [
+    "Pending",
+    "Outreach",
+    "Engaged",
+    "Proposal",
+    "Quote Follow Up",
+    "Finalizing",
+    "Closed Won",
+    "Closed Lost",
+    "Won't Process",
+    "Co-Term"
+  ],
+
+  "scenario_routing": {
+    "_comment": "Maps gate state + signals to one of the 10 closing scenarios.",
+    "scenarios": {
+      "1":  { "name": "Standard on-time renewal", "outcome": "Closed-Won", "signals": ["engaged", "quote_signed_before_deadline"] },
+      "2":  { "name": "Standard on-time cancellation", "outcome": "Closed-Lost", "signals": ["cancellation_notice_received", "notice_before_ar_deadline"] },
+      "3":  { "name": "Customer delay — commitment provided", "outcome": "Extension", "signals": ["engaged", "delayed", "commitment_form_signed"] },
+      "4":  { "name": "Customer delay — no commitment", "outcome": "Closed-Lost", "signals": ["engaged", "delayed", "no_commitment_form"] },
+      "5":  { "name": "Internal delay", "outcome": "Extension", "signals": ["internal_blocker", "not_customer_fault"] },
+      "6":  { "name": "Late signature with AR", "outcome": "Closed-Won AR", "signals": ["ar_clause", "engaged", "past_deadline", "signs_after_ar"] },
+      "7":  { "name": "Unresponsive with AR", "outcome": "Closed-Won AR", "signals": ["ar_clause", "unresponsive", "ar_executed"] },
+      "8":  { "name": "Late cancellation with AR", "outcome": "Closed-Won AR", "signals": ["ar_clause", "cancellation_after_deadline", "ar_binding"] },
+      "9":  { "name": "Unresponsive without AR", "outcome": "Closed-Lost", "signals": ["no_ar_clause", "unresponsive"] },
+      "10": { "name": "Bankruptcy / legal hold", "outcome": "Suspended", "signals": ["financial_distress", "legal_hold"] }
+    }
+  },
+
+  "risk_signals": {
+    "no_activity_days": 14,
+    "no_activity_comment": "Flag if LastActivityDate is older than this many days and opp is not closed.",
+    "no_follow_up_comment": "Flag if Next_Follow_Up_Date__c is in the past or null for open opps inside the 90-day window.",
+    "churn_language_patterns": [
+      "cancel", "not renew", "evaluate", "alternative", "competitor",
+      "budget", "cost concern", "too expensive", "consolidat"
+    ]
+  }
+}

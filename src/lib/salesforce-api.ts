@@ -1,16 +1,46 @@
-import jsforce, { Connection } from 'jsforce'
+/**
+ * Salesforce REST API client using the Workers-native `fetch` API.
+ *
+ * Replaces jsforce, which depends on Node's `https.request` — not implemented
+ * by `unenv` (the polyfill layer OpenNext uses on Cloudflare Workers).
+ */
 
-let cachedConnection: Connection | null = null
-let tokenExpiresAt = 0
+const SF_LOGIN_URL = 'https://login.salesforce.com'
+const SF_API_VERSION = 'v59.0'
+
+interface SfAuth {
+  accessToken: string
+  instanceUrl: string
+  expiresAt: number
+}
+
+interface SfTokenResponse {
+  access_token: string
+  instance_url: string
+  issued_at: string
+}
+
+interface SfQueryResponse<T> {
+  totalSize: number
+  done: boolean
+  nextRecordsUrl?: string
+  records: T[]
+}
+
+interface SfErrorEntry {
+  message: string
+  errorCode: string
+}
+
+let cachedAuth: SfAuth | null = null
 
 /**
- * Returns an authenticated jsforce Connection using the username-password
- * OAuth2 flow. Reuses the connection across requests until the token expires.
+ * Authenticates against Salesforce via the OAuth2 username-password flow.
+ * Caches the access token + instance URL until shortly before expiry.
  */
-export async function getSalesforceConnection(): Promise<Connection> {
-  // Reuse connection if token is still valid (with 5-min buffer)
-  if (cachedConnection && Date.now() < tokenExpiresAt - 5 * 60 * 1000) {
-    return cachedConnection
+async function getSalesforceAuth(): Promise<SfAuth> {
+  if (cachedAuth && Date.now() < cachedAuth.expiresAt - 5 * 60 * 1000) {
+    return cachedAuth
   }
 
   const clientId = process.env.SF_CLIENT_ID
@@ -25,50 +55,217 @@ export async function getSalesforceConnection(): Promise<Connection> {
     )
   }
 
-  const conn = new jsforce.Connection({
-    oauth2: {
-      loginUrl: 'https://login.salesforce.com',
-      clientId,
-      clientSecret,
-    },
+  const body = new URLSearchParams({
+    grant_type: 'password',
+    client_id: clientId,
+    client_secret: clientSecret,
+    username,
+    password: `${password}${securityToken}`,
   })
 
-  // Salesforce expects password + security token concatenated
-  await conn.login(username, `${password}${securityToken}`)
+  const resp = await fetch(`${SF_LOGIN_URL}/services/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
 
-  cachedConnection = conn
-  // jsforce doesn't expose token expiry directly; assume 2-hour session
-  tokenExpiresAt = Date.now() + 2 * 60 * 60 * 1000
+  if (!resp.ok) {
+    const text = await resp.text()
+    throw new Error(`Salesforce auth failed (${resp.status}): ${text}`)
+  }
+
+  const data = (await resp.json()) as SfTokenResponse
+
+  cachedAuth = {
+    accessToken: data.access_token,
+    instanceUrl: data.instance_url,
+    // SF sessions default to 2 hours; refresh proactively
+    expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+  }
 
   console.log('[salesforce-api] Authenticated as', username)
-  return conn
+  return cachedAuth
 }
 
 /**
  * Run a SOQL query against Salesforce and return the records array.
- * Handles authentication and auto-retries once on session expiry.
+ * Follows pagination and re-authenticates once on session expiry (401).
  */
-export async function querySalesforce<T extends Record<string, unknown> = Record<string, unknown>>(
-  soql: string
+export async function querySalesforce<
+  T extends Record<string, unknown> = Record<string, unknown>
+>(soql: string): Promise<T[]> {
+  return runQuery<T>(soql, false)
+}
+
+/**
+ * Aggregate KPI totals for the Pipeline view.
+ *
+ * "Active, valid renewals" per the Trilogy playbook:
+ *   Type = 'Renewal' AND IsClosed = false AND Handled_by_BU__c = false
+ *
+ * Buckets by Probable_Outcome__c — nulls roll into 'Undetermined'.
+ */
+export interface PipelineKpis {
+  totalArr:    number
+  total:       number
+  winArr:      number
+  winCount:    number
+  churnArr:    number
+  churnCount:  number
+  riskArr:     number
+  riskCount:   number
+}
+
+interface OutcomeAgg extends Record<string, unknown> {
+  Probable_Outcome__c: string | null
+  cnt: number
+  total_arr: number | null
+}
+
+// ISR/ERM core-renewals team. Names match Salesforce Owner.Name exactly
+// ('Sebastian Desand' — not 'Destand' which appears in CLAUDE.md).
+const CORE_OWNERS = [
+  'James Quigley',
+  'James Stothard',
+  'Tim Courtenay',
+  'Sebastian Desand',
+  'Fredrik Scheike',
+] as const
+
+export async function fetchPipelineKpis(): Promise<PipelineKpis> {
+  const ownerList = CORE_OWNERS.map(n => `'${n}'`).join(', ')
+  const rows = await querySalesforce<OutcomeAgg>(
+    `SELECT Probable_Outcome__c, COUNT(Id) cnt, SUM(ARR__c) total_arr
+     FROM Opportunity
+     WHERE Type = 'Renewal' AND IsClosed = false
+       AND Handled_by_BU__c = false
+       AND Owner.Name IN (${ownerList})
+       AND Renewal_Date__c > 2026-01-01
+     GROUP BY Probable_Outcome__c`
+  )
+
+  const k: PipelineKpis = {
+    totalArr: 0, total: 0,
+    winArr: 0, winCount: 0,
+    churnArr: 0, churnCount: 0,
+    riskArr: 0, riskCount: 0,
+  }
+
+  for (const r of rows) {
+    const arr = r.total_arr ?? 0
+    const cnt = r.cnt ?? 0
+    k.totalArr += arr
+    k.total    += cnt
+    if (r.Probable_Outcome__c === 'Likely to Win')   { k.winArr   += arr; k.winCount   += cnt }
+    else if (r.Probable_Outcome__c === 'Likely to Churn') { k.churnArr += arr; k.churnCount += cnt }
+    else                                                   { k.riskArr  += arr; k.riskCount  += cnt }
+  }
+
+  return k
+}
+
+/**
+ * Full list of opportunities matching the Pipeline KPI criteria — the broader
+ * active-renewals book for the core team, not the gate-bucketed Supabase
+ * subset. Used as the source of truth for the /pipeline table and its
+ * Stage/Owner/Product/Outcome filters so counts stay consistent with the
+ * cards.
+ */
+export interface PipelineOpportunity {
+  id: string
+  name: string | null
+  account: string | null
+  owner_name: string | null
+  product: string | null
+  stage: string | null
+  probable_outcome: string | null
+  opp_status: string | null
+  arr: number | null
+  renewal_date: string | null
+}
+
+interface SfPipelineRow extends Record<string, unknown> {
+  Id: string
+  Name: string | null
+  Account: { Name: string | null } | null
+  Owner: { Name: string | null } | null
+  Product__c: string | null
+  StageName: string | null
+  Probable_Outcome__c: string | null
+  Opportunity_Status__c: string | null
+  ARR__c: number | null
+  Renewal_Date__c: string | null
+}
+
+export async function fetchPipelineOpportunities(): Promise<PipelineOpportunity[]> {
+  const ownerList = CORE_OWNERS.map(n => `'${n}'`).join(', ')
+  const rows = await querySalesforce<SfPipelineRow>(
+    `SELECT Id, Name, Account.Name, Owner.Name, Product__c, StageName,
+            Probable_Outcome__c, Opportunity_Status__c, ARR__c, Renewal_Date__c
+     FROM Opportunity
+     WHERE Type = 'Renewal' AND IsClosed = false
+       AND Handled_by_BU__c = false
+       AND Owner.Name IN (${ownerList})
+       AND Renewal_Date__c > 2026-01-01`
+  )
+
+  return rows.map(r => ({
+    id:               r.Id,
+    name:             r.Name,
+    account:          r.Account?.Name ?? null,
+    owner_name:       r.Owner?.Name ?? null,
+    product:          r.Product__c,
+    stage:            r.StageName,
+    probable_outcome: r.Probable_Outcome__c,
+    opp_status:       r.Opportunity_Status__c,
+    arr:              r.ARR__c,
+    renewal_date:     r.Renewal_Date__c,
+  }))
+}
+
+async function runQuery<T extends Record<string, unknown>>(
+  soql: string,
+  isRetry: boolean
 ): Promise<T[]> {
-  let conn = await getSalesforceConnection()
+  const auth = await getSalesforceAuth()
+  const records: T[] = []
 
-  try {
-    const result = await conn.query<T>(soql)
-    return result.records
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err)
+  let url: string | null =
+    `${auth.instanceUrl}/services/data/${SF_API_VERSION}/query/?q=${encodeURIComponent(soql)}`
 
-    // If session expired, clear cache and retry once
-    if (message.includes('INVALID_SESSION_ID') || message.includes('Session expired')) {
+  while (url) {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    })
+
+    if (resp.status === 401 && !isRetry) {
       console.log('[salesforce-api] Session expired, re-authenticating...')
-      cachedConnection = null
-      tokenExpiresAt = 0
-      conn = await getSalesforceConnection()
-      const result = await conn.query<T>(soql)
-      return result.records
+      cachedAuth = null
+      return runQuery<T>(soql, true)
     }
 
-    throw new Error(`Salesforce query failed: ${message}`)
+    if (!resp.ok) {
+      const text = await resp.text()
+      let message = text
+      try {
+        const parsed = JSON.parse(text) as SfErrorEntry[] | SfErrorEntry
+        const first = Array.isArray(parsed) ? parsed[0] : parsed
+        if (first?.errorCode || first?.message) {
+          message = `${first.errorCode ?? 'ERROR'}: ${first.message ?? text}`
+        }
+      } catch {
+        // leave `message` as the raw response text
+      }
+      throw new Error(`Salesforce query failed (${resp.status}): ${message}`)
+    }
+
+    const data = (await resp.json()) as SfQueryResponse<T>
+    records.push(...data.records)
+
+    url = data.done || !data.nextRecordsUrl
+      ? null
+      : `${auth.instanceUrl}${data.nextRecordsUrl}`
   }
+
+  return records
 }

@@ -33,6 +33,7 @@ export interface Opportunity {
   opp_type: string | null
   next_step: string | null
   description: string | null
+  support_tickets_summary: string | null
   gate3_violation_date: string | null
   in_gate1: boolean
   in_gate2: boolean
@@ -62,4 +63,4 @@ export interface LastRefresh {
   activity_count: number | null
 }
 
-export type TabId = 'gate1' | 'gate2' | 'gate3' | 'gate4' | 'not_touched' | 'past_due' | 'calls'
+export type TabId = 'gate1' | 'gate2' | 'gate3' | 'gate4' | 'not_touched' | 'past_due'

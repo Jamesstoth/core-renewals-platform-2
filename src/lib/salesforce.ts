@@ -37,9 +37,9 @@ export const OPPORTUNITIES_QUERY = `
     AI_Churn_Risk_Category__c,
     Priority_Score__c,
     Product__c,
-    Account_Report__c,
-    Opportunity_Report__c,
-    Support_Tickets_Summary__c
+    Account.Account_Report__c,
+    Account.Support_Tickets_Summary__c,
+    Opportunity_Report__c
   FROM Opportunity
   WHERE IsClosed = false
     AND Type IN ('Renewal', 'Upsell')
@@ -167,7 +167,7 @@ export function sfOpportunityToPortalOpportunity(
   const ownerName = opp.Owner?.Name ?? "Unassigned";
   // Health score is computed in-app by the engine — SF's Health_Score__c is
   // null for every open opportunity. Adapter extracts signals from standard
-  // SF fields plus the 3 AI summary fields (Account_Report__c, etc.).
+  // SF fields plus the 3 AI summary fields (Account.Account_Report__c, etc.).
   const health = scoreSfOpportunity(opp);
   return {
     id: opp.Id,
@@ -191,9 +191,9 @@ export function sfOpportunityToPortalOpportunity(
     hasOpenActivity: opp.HasOpenActivity ?? false,
     hasOverdueTask: opp.HasOverdueTask ?? false,
     description: null, // Description is stored directly in Supabase, not on SfOpportunityRecord
-    accountReport: opp.Account_Report__c ?? null,
+    accountReport: opp.Account?.Account_Report__c ?? null,
     opportunityReport: opp.Opportunity_Report__c ?? null,
-    supportTicketsSummary: opp.Support_Tickets_Summary__c ?? null,
+    supportTicketsSummary: opp.Account?.Support_Tickets_Summary__c ?? null,
   };
 }
 

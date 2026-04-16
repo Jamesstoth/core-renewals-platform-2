@@ -35,12 +35,19 @@ const SUGGESTED_QUESTIONS = [
 // AI generation hook
 // ---------------------------------------------------------------------------
 
-function useGenerate(
-  type: "email" | "summary" | "call_objective",
+interface Signal {
+  label: string;
+  evidence: string;
+  severity: "high" | "medium" | "low";
+  category: string;
+}
+
+function useGenerate<T extends Record<string, unknown> = Record<string, string>>(
+  type: "email" | "summary" | "call_objective" | "signals",
   item: QueueItem,
   emailType?: string
 ) {
-  const [data, setData] = useState<Record<string, string> | null>(null);
+  const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +104,109 @@ function CopyButton({ text }: { text: string }) {
     >
       {copied ? "Copied!" : "Copy"}
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Signals card
+// ---------------------------------------------------------------------------
+
+const SEVERITY_STYLE: Record<Signal["severity"], string> = {
+  high:   "bg-red-100 text-red-700 border border-red-200",
+  medium: "bg-amber-100 text-amber-700 border border-amber-200",
+  low:    "bg-gray-100 text-gray-600 border border-gray-200",
+};
+
+function SignalList({
+  signals,
+  variant,
+  emptyLabel,
+}: {
+  signals: Signal[];
+  variant: "positive" | "negative";
+  emptyLabel: string;
+}) {
+  const headerColor  = variant === "positive" ? "text-emerald-900" : "text-red-900";
+  const borderColor  = variant === "positive" ? "border-emerald-200" : "border-red-200";
+  const bgColor      = variant === "positive" ? "bg-emerald-50" : "bg-red-50";
+  const title        = variant === "positive" ? "Positive Signals" : "Negative Signals";
+  const icon         = variant === "positive" ? "+" : "−";
+
+  return (
+    <div className={cn("rounded-lg border p-4", borderColor, bgColor)}>
+      <h4 className={cn("text-sm font-semibold mb-3", headerColor)}>
+        <span className="mr-1">{icon}</span>
+        {title}
+      </h4>
+      {signals.length === 0 ? (
+        <p className="text-xs italic text-gray-500">{emptyLabel}</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {signals.map((s, i) => (
+            <li key={i} className="text-sm">
+              <div className="flex items-start gap-2">
+                <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide", SEVERITY_STYLE[s.severity] ?? SEVERITY_STYLE.low)}>
+                  {s.severity}
+                </span>
+                <span className="font-medium text-gray-900">{s.label}</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wide ml-auto">
+                  {s.category}
+                </span>
+              </div>
+              <p className="mt-1 ml-1 text-xs text-gray-600 leading-relaxed">
+                {s.evidence}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SignalsCard({
+  data,
+  loading,
+  error,
+  onRegenerate,
+}: {
+  data: { positiveSignals: Signal[]; negativeSignals: Signal[] } | null;
+  loading: boolean;
+  error: string | null;
+  onRegenerate: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-gray-900">AI Signals</h4>
+        <button
+          onClick={onRegenerate}
+          disabled={loading}
+          className="text-xs font-medium text-blue-600 hover:text-blue-800 disabled:text-blue-400"
+        >
+          {data ? "Regenerate" : "Generate"}
+        </button>
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : data ? (
+        <div className="grid grid-cols-2 gap-3">
+          <SignalList
+            signals={data.positiveSignals}
+            variant="positive"
+            emptyLabel="No positive signals detected in the data."
+          />
+          <SignalList
+            signals={data.negativeSignals}
+            variant="negative"
+            emptyLabel="No negative signals detected in the data."
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -385,6 +495,23 @@ export default function ExpandedDetails({ item }: ExpandedDetailsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Signals — lazy-loaded the first time the OppSignals tab is opened
+  const signals = useGenerate<{ positiveSignals: Signal[]; negativeSignals: Signal[] }>(
+    "signals",
+    item
+  );
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<"overview" | "signals">("overview");
+  const [signalsRequested, setSignalsRequested] = useState(false);
+  useEffect(() => {
+    if (activeTab === "signals" && !signalsRequested) {
+      setSignalsRequested(true);
+      signals.generate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   // Email — triggered by user
   const [emailType, setEmailType] = useState<string>(EMAIL_TYPES[0].value);
   const email = useGenerate("email", item, emailType);
@@ -415,6 +542,42 @@ export default function ExpandedDetails({ item }: ExpandedDetailsProps) {
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={cn(
+            "px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+            activeTab === "overview"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          )}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("signals")}
+          className={cn(
+            "px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+            activeTab === "signals"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          )}
+        >
+          OppSignals
+        </button>
+      </div>
+
+      {activeTab === "signals" && (
+        <SignalsCard
+          data={signals.data as { positiveSignals: Signal[]; negativeSignals: Signal[] } | null}
+          loading={signals.loading}
+          error={signals.error}
+          onRegenerate={() => { setSignalsRequested(true); signals.generate(); }}
+        />
+      )}
+
+      {activeTab === "overview" && <>
       {/* Opportunity overview — AI generated */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-center justify-between mb-1">
@@ -552,6 +715,7 @@ export default function ExpandedDetails({ item }: ExpandedDetailsProps) {
 
       {/* Ask AI about this deal */}
       <AskAI item={item} />
+      </>}
 
       {/* Action buttons */}
       <div className="flex items-center gap-3 pt-2">

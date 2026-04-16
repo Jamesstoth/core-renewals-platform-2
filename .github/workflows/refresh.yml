@@ -42,7 +42,7 @@ env:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -53,41 +53,34 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Query Salesforce — Gate 1
+      - name: Query Salesforce — All Opportunities
         run: |
-          echo "Querying Gate 1 opportunities..."
-          python3 lib/query_sf_direct.py data/sf_gate1.json --soql-key gate1_soql
+          echo "Querying all opportunities..."
+          python3 lib/query_sf_direct.py data/sf_latest.json
 
-      - name: Query Salesforce — Gate 2
+      - name: Split into per-gate files
         run: |
-          echo "Querying Gate 2 opportunities..."
-          python3 lib/query_sf_direct.py data/sf_gate2.json --soql-key gate2_soql
-
-      - name: Query Salesforce — Gate 3
-        run: |
-          echo "Querying Gate 3 opportunities..."
-          python3 lib/query_sf_direct.py data/sf_gate3.json --soql-key gate3_soql
-
-      - name: Query Salesforce — Gate 4
-        run: |
-          echo "Querying Gate 4 opportunities..."
-          python3 lib/query_sf_direct.py data/sf_gate4.json --soql-key gate4_soql
-
-      - name: Query Salesforce — Not Touched
-        run: |
-          echo "Querying Not Touched opportunities..."
-          python3 lib/query_sf_direct.py data/sf_not_touched.json --soql-key not_touched_soql
-
-      - name: Query Salesforce — Past Due
-        run: |
-          echo "Querying Past Due opportunities..."
-          python3 lib/query_sf_direct.py data/sf_past_due.json --soql-key past_due_soql
+          echo "Splitting sf_latest.json into gate files..."
+          python3 lib/split_gates.py
 
       - name: Query Salesforce — Activities
         if: ${{ github.event.inputs.skip_activities != 'true' }}
         run: |
           echo "Querying Activities..."
           python3 lib/query_sf_direct.py data/sf_activities_latest.json --soql-key activities_soql --allow-empty
+
+      - name: Evaluate Gates
+        run: |
+          echo "Running 7-gate evaluation framework..."
+          python3 lib/evaluate_gates.py
+
+      - name: Agent Evaluation
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running AI reasoning layer..."
+          python3 lib/agent_evaluate.py || echo "Agent evaluation failed — Phase 1 output remains as fallback"
 
       - name: Write to Supabase
         run: |
@@ -106,3 +99,18 @@ jobs:
               echo "| $(basename $f) | $count |" >> $GITHUB_STEP_SUMMARY
             fi
           done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ -f "data/gate_evaluations.json" ]]; then
+            echo "### Gate Evaluation" >> $GITHUB_STEP_SUMMARY
+            eval_count=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['total_opportunities'])" 2>/dev/null || echo "0")
+            violations=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['total_violations'])" 2>/dev/null || echo "0")
+            arr_risk=$(python3 -c "import json;print(int(json.load(open('data/gate_evaluations.json'))['summary']['total_arr_at_risk']))" 2>/dev/null || echo "0")
+            risk_crit=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['by_risk_level']['critical'])" 2>/dev/null || echo "0")
+            risk_high=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['by_risk_level']['high'])" 2>/dev/null || echo "0")
+            risk_med=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['by_risk_level']['medium'])" 2>/dev/null || echo "0")
+            risk_low=$(python3 -c "import json;print(json.load(open('data/gate_evaluations.json'))['summary']['by_risk_level']['low'])" 2>/dev/null || echo "0")
+            echo "- **Evaluated:** $eval_count opportunities" >> $GITHUB_STEP_SUMMARY
+            echo "- **Violations:** $violations" >> $GITHUB_STEP_SUMMARY
+            echo "- **ARR at risk:** $arr_risk" >> $GITHUB_STEP_SUMMARY
+            echo "- **Risk:** $risk_crit critical, $risk_high high, $risk_med medium, $risk_low low" >> $GITHUB_STEP_SUMMARY
+          fi
