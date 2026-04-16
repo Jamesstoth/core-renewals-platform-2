@@ -182,9 +182,9 @@ def build_opp_context(eval_opp, raw_by_id, activity_index):
     raw = raw_by_id.get(opp_id, {})
 
     desc = (raw.get("Description") or "")
-    # Truncate very long descriptions to the most recent entries (top of field)
-    if len(desc) > 1500:
-        desc = desc[:1500] + "... [truncated]"
+    # Truncate to most recent entries — 800 chars balances context vs cost
+    if len(desc) > 800:
+        desc = desc[:800] + "... [truncated]"
 
     next_step = raw.get("NextStep") or ""
     churn_risks = raw.get("Churn_Risks__c") or ""
@@ -231,34 +231,22 @@ def build_portfolio_prompt(owner, eval_opps, raw_by_id, activity_index):
         ),
     )
 
-    # For large portfolios, include full detail for critical/high, summary for medium/low
+    # Only send critical + high risk opps to Claude (Option B optimisation)
+    # Medium/low risk opps are adequately covered by Phase 1 deterministic evaluation
     detailed = [o for o in sorted_opps if o.get("overall_risk") in ("critical", "high")]
-    summary_only = [o for o in sorted_opps if o.get("overall_risk") in ("medium", "low")]
+    skipped = [o for o in sorted_opps if o.get("overall_risk") in ("medium", "low")]
 
     opp_blocks = []
     for o in detailed:
         opp_blocks.append(build_opp_context(o, raw_by_id, activity_index))
 
-    # Compact format for lower-risk opps
-    if summary_only:
-        opp_blocks.append("\n--- LOWER RISK (summary) ---")
-        for o in summary_only:
-            opp_blocks.append(
-                f"{o.get('opp_name','')} | {o.get('account_name','')} | "
-                f"${o.get('current_arr',0):,.0f} | {o.get('renewal_date','')} "
-                f"({o.get('days_to_renewal','')}d) | Gate {o.get('current_gate','')} | "
-                f"{o.get('overall_risk','')} | {o.get('stage','')}"
-            )
-
     portfolio_text = "\n\n".join(opp_blocks)
 
     return f"""Analyse the following renewal portfolio for {owner} as of {TODAY.isoformat()}.
 
-Total: {len(eval_opps)} open opportunities
-Critical: {sum(1 for o in eval_opps if o.get('overall_risk')=='critical')}
-High: {sum(1 for o in eval_opps if o.get('overall_risk')=='high')}
-Medium: {sum(1 for o in eval_opps if o.get('overall_risk')=='medium')}
-Low: {sum(1 for o in eval_opps if o.get('overall_risk')=='low')}
+Total open: {len(eval_opps)} opportunities
+Sent for AI analysis (critical + high risk): {len(detailed)}
+Handled by deterministic evaluator only (medium + low): {len(skipped)}
 
 Produce the daily briefing JSON for {owner}. Focus on:
 1. What needs to happen TODAY (critical actions with specific steps)
@@ -276,7 +264,7 @@ PORTFOLIO DATA:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def call_claude(system, user_message, retries=2):
+def call_claude(system, user_message, retries=3):
     """Call Claude Messages API. Returns parsed JSON response or None on failure."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -299,7 +287,7 @@ def call_claude(system, user_message, retries=2):
     for attempt in range(1, retries + 1):
         try:
             req = urllib.request.Request(API_URL, data=payload, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=300) as resp:
                 data = json.loads(resp.read().decode())
 
             # Extract text content
