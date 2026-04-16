@@ -94,6 +94,14 @@ jobs:
           echo "Running 7-gate evaluation framework..."
           python3 lib/evaluate_gates.py
 
+      - name: Agent Evaluation
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running AI reasoning layer..."
+          python3 lib/agent_evaluate.py || echo "Agent evaluation failed — Phase 1 output remains as fallback"
+
       - name: Write to Supabase
         run: |
           echo "Upserting data to Supabase..."
